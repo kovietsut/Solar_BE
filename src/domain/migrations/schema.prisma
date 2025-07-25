@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime?
+  createdBy      String?  // Optional UUIDs
+  updatedBy      String?
+  isDeleted      Boolean  @default(false)
+  roleId         String
+  phoneNumber    String
+  passwordHash   String
+  securityStamp  String
+  email          String   @unique
+  name           String
+  avatarPath     String?
+  address        String?
+
+  role           Role     @relation(fields: [roleId], references: [id])
+  authMethods    AuthMethod[]
+
+  @@map("users")
+}
+
+model Role {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime?
+  createdBy  String?
+  updatedBy  String?
+  isDeleted  Boolean  @default(false)
+  name       String   @unique
+
+  users      User[]
+
+  @@map("roles")
+}
+
+model AuthMethod {
+  id                    String    @id @default(uuid())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime?
+  createdBy            String?
+  updatedBy            String?
+  isDeleted            Boolean   @default(false)
+  userId               String
+  authType             String
+  authId               String
+  accessToken          String?  @db.Text
+  refreshToken         String?  @db.Text
+  jwtId                String?
+  isRevoked            Boolean   @default(false)
+  accessTokenExpiration DateTime?
+  refreshTokenExpiration DateTime?
+  deviceId             String
+  deviceType           String
+  platform             String
+  deviceName           String?
+  user                 User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([deviceId])
+  @@map("auth_methods")
+} 

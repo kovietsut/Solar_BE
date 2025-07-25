@@ -1,0 +1,5 @@
+export const ROLE_SERVICE = 'ROLE_SERVICE';
+export const ROLE_REPOSITORY = 'ROLE_REPOSITORY';
+export const USER_SERVICE = 'USER_SERVICE';
+export const USER_REPOSITORY = 'USER_REPOSITORY';
+export const AUTH_SERVICE = 'AUTH_SERVICE';
