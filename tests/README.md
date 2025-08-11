@@ -75,13 +75,10 @@ npm run test:testcontainers
 
 ## Environment Variables
 
-The following environment variables are used if `TEST_DATABASE_URL` is not set:
-
 - `DATABASE_USERNAME`
 - `DATABASE_PASSWORD`
 - `DATABASE_HOST`
 - `DATABASE_PORT`
-- `DATABASE_TEST_NAME`
 
 ### Container Startup Issues
 
@@ -103,18 +100,3 @@ The following environment variables are used if `TEST_DATABASE_URL` is not set:
 
 - ✅ `tests/config/testcontainers.config.ts` (new)
 - ✅ `npm run test:testcontainers` (new)
-
-## Architecture
-
-```
-TestContainersManager (Singleton)
-├── startContainer() → TestContainerConfig
-├── stopContainer() → void
-├── getPrismaClient() → PrismaClient
-└── getDatabaseUrl() → string
-
-TestContainerConfig
-├── container: StartedTestContainer
-├── databaseUrl: string
-└── prismaClient: PrismaClient
-```
