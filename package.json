@@ -17,11 +17,16 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./tests/config/jest-e2e.json tests/e2e --testTimeout=60000",
+    "test:e2e": "jest --config ./tests/config/jest-e2e.json tests/e2e",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration --testTimeout=60000",
+    "test:integration": "jest tests/integration",
     "test:user": "npm run test:unit -- --testPathPattern=user && npm run test:integration -- --testPathPattern=user && npm run test:e2e -- --testPathPattern=user",
-    "test:testcontainers": "ts-node tests/scripts/test-testcontainers.ts"
+    "test:testcontainers": "ts-node tests/scripts/test-testcontainers.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed --config=prisma.config.ts",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -91,12 +96,10 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
-    "testTimeout": 60000,
+    "testTimeout": 6000,
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/src/$1"
-    }
-  },
-  "prisma": {
-    "seed": "ts-node src/domain/migrations/seed.ts"
+    },
+    "globalTeardown": "<rootDir>/tests/config/jest-global-teardown.ts"
   }
 }

@@ -9,6 +9,8 @@
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/src/$1"
   },
-  "testTimeout": 60000,
-  "setupFilesAfterEnv": ["<rootDir>/tests/config/jest-e2e.setup.ts"]
+  "testTimeout": 30000,
+  "setupFilesAfterEnv": ["<rootDir>/tests/config/jest-e2e.setup.ts"],
+  "maxWorkers": "50%",
+  "globalTeardown": "<rootDir>/tests/config/jest-global-teardown.ts"
 }

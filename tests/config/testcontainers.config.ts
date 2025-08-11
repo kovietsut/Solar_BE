@@ -1,6 +1,5 @@
 import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 import { PrismaClient } from '@prisma/client';
-import * as path from 'path';
 
 export interface TestContainerConfig {
   container: StartedTestContainer;
@@ -50,11 +49,13 @@ export class TestContainersManager {
 
     // Wait for MySQL to be fully ready and test connection
     let retries = 0;
-    const maxRetries = 10;
+    const maxRetries = 15;
+
+    // Add initial delay to ensure container is fully ready
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     while (retries < maxRetries) {
       try {
-        // Test connection with a simple query
         const testPrisma = new PrismaClient({
           datasources: {
             db: {
@@ -70,9 +71,9 @@ export class TestContainersManager {
       } catch (error) {
         retries++;
         console.log(
-          `Connection test failed (attempt ${retries}/${maxRetries}), waiting 3 seconds...`,
+          `Connection test failed (attempt ${retries}/${maxRetries}), waiting 2 seconds...`,
         );
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -91,28 +92,77 @@ export class TestContainersManager {
       },
     });
 
-    // Push schema to the test container (avoids migration conflicts)
+    // Push schema to the test container using Prisma client
     console.log('Pushing schema to test container...');
-    const { execSync } = require('child_process');
-    const schemaPath = path.join(
-      __dirname,
-      '../../src/domain/migrations/schema.prisma',
-    );
 
     try {
-      execSync(
-        `npx prisma db push --schema "${schemaPath}" --accept-data-loss`,
-        {
-          env: {
-            ...process.env,
-            DATABASE_URL: databaseUrl,
-          },
-          stdio: 'inherit',
-        },
-      );
-      console.log('Schema push completed successfully!');
+      // Execute raw SQL to create tables based on our schema
+      await this.prismaClient.$executeRaw`
+        CREATE TABLE IF NOT EXISTS roles (
+          id VARCHAR(191) NOT NULL,
+          createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updatedAt DATETIME(3) NULL,
+          createdBy VARCHAR(191) NULL,
+          updatedBy VARCHAR(191) NULL,
+          isDeleted BOOLEAN NOT NULL DEFAULT false,
+          name VARCHAR(191) NOT NULL,
+          PRIMARY KEY (id)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `;
+
+      await this.prismaClient.$executeRaw`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(191) NOT NULL,
+          createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updatedAt DATETIME(3) NULL,
+          createdBy VARCHAR(191) NULL,
+          updatedBy VARCHAR(191) NULL,
+          isDeleted BOOLEAN NOT NULL DEFAULT false,
+          roleId VARCHAR(191) NOT NULL,
+          phoneNumber VARCHAR(191) NOT NULL,
+          passwordHash VARCHAR(191) NOT NULL,
+          securityStamp VARCHAR(191) NOT NULL,
+          email VARCHAR(191) NOT NULL,
+          name VARCHAR(191) NOT NULL,
+          avatarPath VARCHAR(191) NULL,
+          address VARCHAR(191) NULL,
+          PRIMARY KEY (id),
+          UNIQUE KEY users_email_key (email),
+          FOREIGN KEY (roleId) REFERENCES roles(id)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `;
+
+      await this.prismaClient.$executeRaw`
+        CREATE TABLE IF NOT EXISTS auth_methods (
+          id VARCHAR(191) NOT NULL,
+          createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updatedAt DATETIME(3) NULL,
+          createdBy VARCHAR(191) NULL,
+          updatedBy VARCHAR(191) NULL,
+          isDeleted BOOLEAN NOT NULL DEFAULT false,
+          userId VARCHAR(191) NOT NULL,
+          authType VARCHAR(191) NOT NULL,
+          authId VARCHAR(191) NOT NULL,
+          accessToken TEXT NULL,
+          refreshToken TEXT NULL,
+          jwtId VARCHAR(191) NULL,
+          isRevoked BOOLEAN NOT NULL DEFAULT false,
+          accessTokenExpiration DATETIME(3) NULL,
+          refreshTokenExpiration DATETIME(3) NULL,
+          deviceId VARCHAR(191) NOT NULL,
+          deviceType VARCHAR(191) NOT NULL,
+          platform VARCHAR(191) NOT NULL,
+          deviceName VARCHAR(191) NULL,
+          PRIMARY KEY (id),
+          FOREIGN KEY (userId) REFERENCES users(id),
+          INDEX auth_methods_userId_idx (userId),
+          INDEX auth_methods_deviceId_idx (deviceId)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `;
+
+      console.log('Schema creation completed successfully!');
     } catch (error) {
-      console.error('Error pushing schema:', error);
+      console.error('Error creating schema:', error);
       throw error;
     }
 
@@ -125,12 +175,20 @@ export class TestContainersManager {
 
   public async stopContainer(): Promise<void> {
     if (this.prismaClient) {
-      await this.prismaClient.$disconnect();
+      try {
+        await this.prismaClient.$disconnect();
+      } catch (error) {
+        console.error('Error disconnecting Prisma client:', error);
+      }
       this.prismaClient = null;
     }
 
     if (this.container) {
-      await this.container.stop();
+      try {
+        await this.container.stop();
+      } catch (error) {
+        console.error('Error stopping container:', error);
+      }
       this.container = null;
     }
   }
@@ -153,6 +211,10 @@ export class TestContainersManager {
     const port = this.container.getMappedPort(3306);
 
     return `mysql://testuser:testpassword@${host}:${port}/testdb`;
+  }
+
+  public isContainerRunning(): boolean {
+    return this.container !== null && this.prismaClient !== null;
   }
 }
 

@@ -1,14 +1,11 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
-import { AppModule } from '../../../src/app.module';
 import { Role } from '../../../src/domain/entities/role.entity';
 import { User } from '../../../src/domain/entities/user.entity';
 import { CreateUserDto } from '../../../src/infrastructure/dtos/user/create-user.dto';
 import { UpdateUserDto } from '../../../src/infrastructure/dtos/user/update-user.dto';
 import { PrismaService } from '../../../src/infrastructure/repositories/prisma.service';
-import { JwtAuthGuard } from '../../../src/infrastructure/guards/jwt-auth.guard';
-import { RoleGuard } from '../../../src/infrastructure/guards/role.guard';
+import { testContainersManager } from '../../config/testcontainers.config';
 
 describe('UserController (e2e)', () => {
   let app: INestApplication;
@@ -16,28 +13,9 @@ describe('UserController (e2e)', () => {
   let testRole: Role;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(RoleGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
-
-    app = moduleFixture.createNestApplication();
-
-    // Enable validation pipes for E2E testing
-    app.useGlobalPipes(
-      new ValidationPipe({
-        transform: true,
-        whitelist: true,
-        forbidNonWhitelisted: false, // Allow non-whitelisted properties
-        skipMissingProperties: true, // Skip validation for missing properties
-      }),
-    );
-
-    await app.init();
+    // Import the shared app instance from the global setup
+    const { app: sharedApp } = await import('../../config/jest-e2e.setup');
+    app = sharedApp;
 
     prismaService = app.get<PrismaService>(PrismaService);
 
@@ -71,8 +49,14 @@ describe('UserController (e2e)', () => {
         where: { id: testRole.id },
       });
     }
-    await app.close();
-  });
+
+    // Ensure container is properly stopped
+    try {
+      await testContainersManager.stopContainer();
+    } catch (error) {
+      console.error('Error stopping test container:', error);
+    }
+  }, 6000);
 
   afterEach(async () => {
     // Clean up test users after each test

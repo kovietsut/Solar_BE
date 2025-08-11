@@ -6,99 +6,194 @@ import { UpdateUserDto } from '../../../src/infrastructure/dtos/user/update-user
 import { GetListQueryDto } from '../../../src/infrastructure/dtos/common/get-list-query.dto';
 import { User } from '../../../src/domain/entities/user.entity';
 import { Role } from '../../../src/domain/entities/role.entity';
-import {
-  createTestPrismaClient,
-  cleanupTestDatabase,
-} from '../../config/test-database.config';
+import { cleanupTestDatabase } from '../../config/test-database.config';
 
 describe('UserRepository Integration', () => {
   let repository: UserRepository;
   let prismaService: PrismaService;
+  let module: TestingModule;
   let testRole: Role;
-  let testUser: User;
 
-  beforeAll(async () => {
-    // Test database setup would go here in a real scenario
+  beforeAll((done) => {
+    (async () => {
+      try {
+        module = await Test.createTestingModule({
+          providers: [UserRepository, PrismaService],
+        }).compile();
+
+        repository = module.get<UserRepository>(UserRepository);
+        prismaService = module.get<PrismaService>(PrismaService);
+
+        // Clean up any existing test data from previous runs in correct order
+        // First delete all auth methods that might reference test users
+        await prismaService.authMethod.deleteMany({
+          where: {
+            OR: [
+              {
+                user: {
+                  email: {
+                    in: [
+                      'test@example.com',
+                      'test2@example.com',
+                      'test1@example.com',
+                      'another@example.com',
+                    ],
+                  },
+                },
+              },
+              {
+                user: {
+                  role: {
+                    name: {
+                      startsWith: 'TestRole_',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        });
+
+        // Then delete all users that reference test roles
+        await prismaService.user.deleteMany({
+          where: {
+            OR: [
+              {
+                email: {
+                  in: [
+                    'test@example.com',
+                    'test2@example.com',
+                    'test1@example.com',
+                    'another@example.com',
+                  ],
+                },
+              },
+              {
+                role: {
+                  name: {
+                    startsWith: 'TestRole_',
+                  },
+                },
+              },
+            ],
+          },
+        });
+
+        // Finally delete roles
+        await prismaService.role.deleteMany({
+          where: {
+            name: {
+              startsWith: 'TestRole_',
+            },
+          },
+        });
+        done();
+      } catch (error) {
+        done(error);
+      }
+    })();
   });
 
-  beforeAll(async () => {
-    // Clean up any existing test data from previous runs
-    const testPrisma = await createTestPrismaClient();
-    await testPrisma.user.deleteMany({
-      where: {
-        email: {
-          in: [
-            'test@example.com',
-            'test2@example.com',
-            'test1@example.com',
-            'another@example.com',
-          ],
-        },
-      },
-    });
-    await testPrisma.role.deleteMany({
-      where: {
-        name: {
-          startsWith: 'TestRole_',
-        },
-      },
-    });
-    await testPrisma.$disconnect();
-  }, 120000); // Increase timeout to 2 minutes for container startup
-
-  afterAll(async () => {
-    // Clean up the test container
-    await cleanupTestDatabase();
+  afterAll((done) => {
+    (async () => {
+      try {
+        // Clean up the test container
+        await cleanupTestDatabase();
+        done();
+      } catch (error) {
+        done(error);
+      }
+    })();
   });
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UserRepository,
-        {
-          provide: PrismaService,
-          useFactory: async () => await createTestPrismaClient(),
-        },
-      ],
-    }).compile();
+  beforeEach((done) => {
+    (async () => {
+      try {
+        // Create a test role with unique name
+        const timestamp = Date.now();
+        const roleName = `TestRole_${timestamp}`;
 
-    repository = module.get<UserRepository>(UserRepository);
-    prismaService = module.get<PrismaService>(PrismaService);
-
-    // Create a test role with unique name
-    const timestamp = Date.now();
-    const roleName = `TestRole_${timestamp}`;
-
-    testRole = await prismaService.role.create({
-      data: {
-        name: roleName,
-        createdBy: null,
-        updatedBy: null,
-      },
-    });
+        testRole = await prismaService.role.create({
+          data: {
+            name: roleName,
+            createdBy: null,
+            updatedBy: null,
+          },
+        });
+        done();
+      } catch (error) {
+        done(error);
+      }
+    })();
   });
 
-  afterEach(async () => {
-    // Clean up test data in correct order (users first, then roles)
-    await prismaService.user.deleteMany({
-      where: {
-        email: {
-          in: [
-            'test@example.com',
-            'test2@example.com',
-            'test1@example.com',
-            'another@example.com',
-          ],
-        },
-      },
-    });
+  afterEach((done) => {
+    (async () => {
+      try {
+        // Clean up test data in correct order (auth methods first, then users, then roles)
+        await prismaService.authMethod.deleteMany({
+          where: {
+            OR: [
+              {
+                user: {
+                  email: {
+                    in: [
+                      'test@example.com',
+                      'test2@example.com',
+                      'test1@example.com',
+                      'another@example.com',
+                    ],
+                  },
+                },
+              },
+              {
+                user: {
+                  role: {
+                    name: {
+                      startsWith: 'TestRole_',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        });
 
-    // Clean up the specific test role we created
-    if (testRole) {
-      await prismaService.role.delete({
-        where: { id: testRole.id },
-      });
-    }
+        await prismaService.user.deleteMany({
+          where: {
+            OR: [
+              {
+                email: {
+                  in: [
+                    'test@example.com',
+                    'test2@example.com',
+                    'test1@example.com',
+                    'another@example.com',
+                  ],
+                },
+              },
+              {
+                role: {
+                  name: {
+                    startsWith: 'TestRole_',
+                  },
+                },
+              },
+            ],
+          },
+        });
+
+        // Clean up the specific test role we created
+        if (testRole) {
+          await prismaService.role.delete({
+            where: { id: testRole.id },
+          });
+        }
+        done();
+      } catch (error) {
+        done(error);
+      }
+    })();
   });
 
   describe('create', () => {
@@ -156,25 +251,32 @@ describe('UserRepository Integration', () => {
   });
 
   describe('findAll', () => {
-    beforeEach(async () => {
-      // Create test users
-      await repository.create({
-        email: 'test1@example.com',
-        name: 'Test User 1',
-        phoneNumber: '0123456789',
-        password: 'password123',
-        address: 'Test Address 1',
-        roleId: testRole.id,
-      });
+    beforeEach((done) => {
+      (async () => {
+        try {
+          // Create test users
+          await repository.create({
+            email: 'test1@example.com',
+            name: 'Test User 1',
+            phoneNumber: '0123456789',
+            password: 'password123',
+            address: 'Test Address 1',
+            roleId: testRole.id,
+          });
 
-      await repository.create({
-        email: 'test2@example.com',
-        name: 'Test User 2',
-        phoneNumber: '0987654321',
-        password: 'password123',
-        address: 'Test Address 2',
-        roleId: testRole.id,
-      });
+          await repository.create({
+            email: 'test2@example.com',
+            name: 'Test User 2',
+            phoneNumber: '0987654321',
+            password: 'password123',
+            address: 'Test Address 2',
+            roleId: testRole.id,
+          });
+          done();
+        } catch (error) {
+          done(error);
+        }
+      })();
     });
 
     it('should return all non-deleted users with role information', async () => {
@@ -201,16 +303,23 @@ describe('UserRepository Integration', () => {
   describe('findById', () => {
     let testUserId: string;
 
-    beforeEach(async () => {
-      const user = await repository.create({
-        email: 'test@example.com',
-        name: 'Test User',
-        phoneNumber: '0123456789',
-        password: 'password123',
-        address: 'Test Address',
-        roleId: testRole.id,
-      });
-      testUserId = user.id;
+    beforeEach((done) => {
+      (async () => {
+        try {
+          const user = await repository.create({
+            email: 'test@example.com',
+            name: 'Test User',
+            phoneNumber: '0123456789',
+            password: 'password123',
+            address: 'Test Address',
+            roleId: testRole.id,
+          });
+          testUserId = user.id;
+          done();
+        } catch (error) {
+          done(error);
+        }
+      })();
     });
 
     it('should return user by id with role information', async () => {
@@ -238,15 +347,22 @@ describe('UserRepository Integration', () => {
   });
 
   describe('findOne', () => {
-    beforeEach(async () => {
-      await repository.create({
-        email: 'test@example.com',
-        name: 'Test User',
-        phoneNumber: '0123456789',
-        password: 'password123',
-        address: 'Test Address',
-        roleId: testRole.id,
-      });
+    beforeEach((done) => {
+      (async () => {
+        try {
+          await repository.create({
+            email: 'test@example.com',
+            name: 'Test User',
+            phoneNumber: '0123456789',
+            password: 'password123',
+            address: 'Test Address',
+            roleId: testRole.id,
+          });
+          done();
+        } catch (error) {
+          done(error);
+        }
+      })();
     });
 
     it('should return user by email with role information', async () => {
@@ -276,16 +392,23 @@ describe('UserRepository Integration', () => {
   describe('update', () => {
     let testUserId: string;
 
-    beforeEach(async () => {
-      const user = await repository.create({
-        email: 'test@example.com',
-        name: 'Test User',
-        phoneNumber: '0123456789',
-        password: 'password123',
-        address: 'Test Address',
-        roleId: testRole.id,
-      });
-      testUserId = user.id;
+    beforeEach((done) => {
+      (async () => {
+        try {
+          const user = await repository.create({
+            email: 'test@example.com',
+            name: 'Test User',
+            phoneNumber: '0123456789',
+            password: 'password123',
+            address: 'Test Address',
+            roleId: testRole.id,
+          });
+          testUserId = user.id;
+          done();
+        } catch (error) {
+          done(error);
+        }
+      })();
     });
 
     it('should update user information successfully', async () => {
@@ -335,16 +458,23 @@ describe('UserRepository Integration', () => {
   describe('softDelete', () => {
     let testUserId: string;
 
-    beforeEach(async () => {
-      const user = await repository.create({
-        email: 'test@example.com',
-        name: 'Test User',
-        phoneNumber: '0123456789',
-        password: 'password123',
-        address: 'Test Address',
-        roleId: testRole.id,
-      });
-      testUserId = user.id;
+    beforeEach((done) => {
+      (async () => {
+        try {
+          const user = await repository.create({
+            email: 'test@example.com',
+            name: 'Test User',
+            phoneNumber: '0123456789',
+            password: 'password123',
+            address: 'Test Address',
+            roleId: testRole.id,
+          });
+          testUserId = user.id;
+          done();
+        } catch (error) {
+          done(error);
+        }
+      })();
     });
 
     it('should soft delete user successfully', async () => {
@@ -364,34 +494,41 @@ describe('UserRepository Integration', () => {
   });
 
   describe('findPaginated', () => {
-    beforeEach(async () => {
-      // Create multiple test users
-      await repository.create({
-        email: 'test1@example.com',
-        name: 'Test User 1',
-        phoneNumber: '0123456789',
-        password: 'password123',
-        address: 'Test Address 1',
-        roleId: testRole.id,
-      });
+    beforeEach((done) => {
+      (async () => {
+        try {
+          // Create multiple test users
+          await repository.create({
+            email: 'test1@example.com',
+            name: 'Test User 1',
+            phoneNumber: '0123456789',
+            password: 'password123',
+            address: 'Test Address 1',
+            roleId: testRole.id,
+          });
 
-      await repository.create({
-        email: 'test2@example.com',
-        name: 'Test User 2',
-        phoneNumber: '0987654321',
-        password: 'password123',
-        address: 'Test Address 2',
-        roleId: testRole.id,
-      });
+          await repository.create({
+            email: 'test2@example.com',
+            name: 'Test User 2',
+            phoneNumber: '0987654321',
+            password: 'password123',
+            address: 'Test Address 2',
+            roleId: testRole.id,
+          });
 
-      await repository.create({
-        email: 'another@example.com',
-        name: 'Another User',
-        phoneNumber: '0555555555',
-        password: 'password123',
-        address: 'Another Address',
-        roleId: testRole.id,
-      });
+          await repository.create({
+            email: 'another@example.com',
+            name: 'Another User',
+            phoneNumber: '0555555555',
+            password: 'password123',
+            address: 'Another Address',
+            roleId: testRole.id,
+          });
+          done();
+        } catch (error) {
+          done(error);
+        }
+      })();
     });
 
     it('should return paginated results with correct count', async () => {

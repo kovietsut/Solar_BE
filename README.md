@@ -17,28 +17,6 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-## Run tests
-
-```bash
-# run all tests - It will auto generate the database for testing
-$ npm run test
-
-# run unit test
-$ npm run test:unit
-
-# run the setup script to create and initialize the test database:
-$ npm run setup:test-db
-
-# run integration test
-$ npm run test:integration
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
 ## Command line
 
 ```bash

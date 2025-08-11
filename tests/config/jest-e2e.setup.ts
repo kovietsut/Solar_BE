@@ -10,7 +10,12 @@ export let app: INestApplication;
 beforeAll(async () => {
   // Start the test container before creating the app
   console.log('Starting test container for E2E tests...');
-  await testContainersManager.startContainer();
+  try {
+    await testContainersManager.startContainer();
+  } catch (error) {
+    console.error('Failed to start test container:', error);
+    throw error;
+  }
 
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
@@ -25,7 +30,7 @@ beforeAll(async () => {
   await app.init();
 
   console.log('E2E test application started successfully');
-}, 60000); // Increase timeout to 60 seconds for container startup
+}, 6000);
 
 afterAll(async () => {
   if (app) {
@@ -34,5 +39,9 @@ afterAll(async () => {
 
   // Stop the test container after all tests
   console.log('Stopping test container...');
-  await testContainersManager.stopContainer();
-}, 30000); // Increase timeout to 30 seconds for container cleanup
+  try {
+    await testContainersManager.stopContainer();
+  } catch (error) {
+    console.error('Error stopping test container:', error);
+  }
+}, 6000);
