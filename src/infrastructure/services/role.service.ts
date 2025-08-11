@@ -17,7 +17,7 @@ export class RoleService
     @Inject(ROLE_REPOSITORY)
     roleRepository: IRoleRepository,
   ) {
-    super(roleRepository, ['name', 'description']);
+    super(roleRepository, ['name'], ['name']);
   }
 
   async getPaginatedList(query: GetListQueryDto) {

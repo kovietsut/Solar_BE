@@ -3,6 +3,7 @@ import { RoleService } from '../../../src/infrastructure/services/role.service';
 import { RoleRepository } from '../../../src/infrastructure/repositories/role.repository';
 import { CreateRoleDto } from '../../../src/infrastructure/dtos/role/create-role.dto';
 import { UpdateRoleDto } from '../../../src/infrastructure/dtos/role/update-role.dto';
+import { GetListQueryDto } from '../../../src/infrastructure/dtos/common/get-list-query.dto';
 import { PrismaRole } from '../../../src/infrastructure/types/prisma-role.type';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { ROLE_REPOSITORY } from '../../../src/infrastructure/constants/injection-tokens';
@@ -35,6 +36,7 @@ describe('RoleService', () => {
       findOne: jest.fn(),
       update: jest.fn(),
       softDelete: jest.fn(),
+      findPaginated: jest.fn(),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -204,6 +206,34 @@ describe('RoleService', () => {
       await expect(service.remove(inputId)).rejects.toThrow(NotFoundException);
       expect(mockRoleRepository.findById).toHaveBeenCalledWith(inputId);
       expect(mockRoleRepository.softDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getPaginatedList', () => {
+    it('should return paginated list of roles', async () => {
+      // Arrange
+      const query = new GetListQueryDto();
+      query.pageNumber = 1;
+      query.pageSize = 10;
+      query.searchText = 'test';
+      const repositoryResult = {
+        items: [mockRole],
+        dataCount: 1,
+      };
+      const expectedResult = {
+        data: [mockRole],
+        dataCount: 1,
+      };
+      mockRoleRepository.findPaginated.mockResolvedValue(repositoryResult);
+
+      // Act
+      const actualResult = await service.getPaginatedList(query);
+
+      // Assert
+      expect(actualResult).toEqual(expectedResult);
+      expect(mockRoleRepository.findPaginated).toHaveBeenCalledWith(query, [
+        'name',
+      ]);
     });
   });
 });

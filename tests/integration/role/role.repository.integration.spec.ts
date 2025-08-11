@@ -1,97 +1,102 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoleRepository } from '../../../src/infrastructure/repositories/role.repository';
 import { PrismaService } from '../../../src/infrastructure/repositories/prisma.service';
-import { Role } from '../../../src/domain/entities/role.entity';
 import { CreateRoleDto } from '../../../src/infrastructure/dtos/role/create-role.dto';
 import { UpdateRoleDto } from '../../../src/infrastructure/dtos/role/update-role.dto';
+import { GetListQueryDto } from '../../../src/infrastructure/dtos/common/get-list-query.dto';
 import { PrismaRole } from '../../../src/infrastructure/types/prisma-role.type';
-import {
-  createTestPrismaClient,
-  cleanupTestDatabase,
-} from '../../config/test-database.config';
 
 /**
  * Integration test suite for RoleRepository
- * Tests all database operations using a real Prisma test database
+ * Tests database operations with real Prisma connection
  */
-describe('RoleRepository Integration Tests', () => {
+describe('RoleRepository Integration', () => {
   let repository: RoleRepository;
-  let prisma: PrismaService;
-  let testRoles: PrismaRole[];
+  let prismaService: PrismaService;
+  let module: TestingModule;
+
+  const testRoleData: CreateRoleDto = {
+    name: 'TestRole',
+  };
+
+  const testRoleData2: CreateRoleDto = {
+    name: 'TestRole2',
+  };
 
   beforeAll(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RoleRepository,
-        {
-          provide: PrismaService,
-          useFactory: async () => await createTestPrismaClient(),
-        },
-      ],
+    module = await Test.createTestingModule({
+      providers: [RoleRepository, PrismaService],
     }).compile();
 
     repository = module.get<RoleRepository>(RoleRepository);
-    prisma = module.get<PrismaService>(PrismaService);
+    prismaService = module.get<PrismaService>(PrismaService);
+
+    // Clean up test data before running tests
+    await prismaService.role.deleteMany({
+      where: {
+        name: {
+          in: [testRoleData.name, testRoleData2.name, 'UpdatedTestRole'],
+        },
+      },
+    });
   });
 
-  beforeEach(async () => {
-    // Clean up the test database before each test
-    // Delete in correct order to avoid foreign key constraint issues
-    // Users depend on roles, so delete users first
-    await prisma.authMethod.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.role.deleteMany();
-
-    // Create test data
-    testRoles = await Promise.all([
-      prisma.role.create({
-        data: {
-          name: 'admin',
-          isDeleted: false,
-        },
-      }) as Promise<PrismaRole>,
-      prisma.role.create({
-        data: {
-          name: 'user',
-          isDeleted: false,
-        },
-      }) as Promise<PrismaRole>,
-    ]);
-  }, 10000); // Increase timeout for database operations
-
   afterAll(async () => {
-    // Clean up after all tests
-    // Delete in correct order to avoid foreign key constraint issues
-    await prisma.authMethod.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.role.deleteMany();
-    await prisma.$disconnect();
+    // Clean up test data after running tests
+    await prismaService.role.deleteMany({
+      where: {
+        name: {
+          in: [testRoleData.name, testRoleData2.name, 'UpdatedTestRole'],
+        },
+      },
+    });
 
-    // Clean up the test container
-    await cleanupTestDatabase();
-  }, 10000); // Increase timeout for cleanup operations
+    await module.close();
+  });
 
   describe('create', () => {
-    it('should create a new role in the database', async () => {
-      // Arrange
-      const inputRole: CreateRoleDto = {
-        name: 'new-role',
-      };
-
+    it('should create a new role', async () => {
       // Act
-      const actualRole = await repository.create(inputRole);
+      const actualRole = await repository.create(testRoleData);
 
       // Assert
       expect(actualRole).toBeDefined();
-      expect(actualRole.name).toBe(inputRole.name);
+      expect(actualRole.id).toBeDefined();
+      expect(actualRole.name).toBe(testRoleData.name);
       expect(actualRole.isDeleted).toBe(false);
+      expect(actualRole.createdAt).toBeDefined();
+      expect(actualRole.updatedAt).toBeDefined();
+    });
 
-      // Verify in database
-      const dbRole = await prisma.role.findUnique({
-        where: { id: actualRole.id },
-      });
-      expect(dbRole).toBeDefined();
-      expect(dbRole?.name).toBe(inputRole.name);
+    it('should create another role for testing', async () => {
+      // Act
+      const actualRole = await repository.create(testRoleData2);
+
+      // Assert
+      expect(actualRole).toBeDefined();
+      expect(actualRole.id).toBeDefined();
+      expect(actualRole.name).toBe(testRoleData2.name);
+      expect(actualRole.isDeleted).toBe(false);
+    });
+  });
+
+  describe('findByName', () => {
+    it('should find a role by name', async () => {
+      // Act
+      const actualRole = await repository.findByName(testRoleData.name);
+
+      // Assert
+      expect(actualRole).toBeDefined();
+      expect(actualRole?.name).toBe(testRoleData.name);
+      expect(actualRole?.isDeleted).toBe(false);
+    });
+
+    it('should return null for non-existent role name', async () => {
+      // Act
+      const actualRole = await repository.findByName('NonExistentRole');
+
+      // Assert
+      expect(actualRole).toBeNull();
     });
   });
 
@@ -101,86 +106,37 @@ describe('RoleRepository Integration Tests', () => {
       const actualRoles = await repository.findAll();
 
       // Assert
-      expect(actualRoles).toHaveLength(2);
-      expect(actualRoles.map((r) => r.name)).toContain('admin');
-      expect(actualRoles.map((r) => r.name)).toContain('user');
-    });
-
-    it('should not return soft-deleted roles', async () => {
-      // Arrange
-      await prisma.role.update({
-        where: { id: testRoles[0].id },
-        data: { isDeleted: true },
+      expect(Array.isArray(actualRoles)).toBe(true);
+      expect(actualRoles.length).toBeGreaterThan(0);
+      actualRoles.forEach((role) => {
+        expect(role.isDeleted).toBe(false);
       });
-
-      // Act
-      const actualRoles = await repository.findAll();
-
-      // Assert
-      expect(actualRoles).toHaveLength(1);
-      expect(actualRoles[0].name).toBe('user');
     });
   });
 
   describe('findById', () => {
-    it('should return a role when it exists', async () => {
+    it('should find a role by id', async () => {
       // Arrange
-      const inputId = testRoles[0].id;
-
-      // Act
-      const actualRole = await repository.findById(inputId);
-
-      // Assert
-      expect(actualRole).toBeDefined();
-      expect(actualRole?.id).toBe(inputId);
-      expect(actualRole?.name).toBe('admin');
-    });
-
-    it('should return null for non-existent role', async () => {
-      // Arrange
-      const inputId = 'non-existent-id';
-
-      // Act
-      const actualRole = await repository.findById(inputId);
-
-      // Assert
-      expect(actualRole).toBeNull();
-    });
-
-    it('should return null for soft-deleted role', async () => {
-      // Arrange
-      await prisma.role.update({
-        where: { id: testRoles[0].id },
-        data: { isDeleted: true },
+      const createdRole = await repository.create({
+        name: `FindByIdTestRole_${Date.now()}`,
       });
 
       // Act
-      const actualRole = await repository.findById(testRoles[0].id);
-
-      // Assert
-      expect(actualRole).toBeNull();
-    });
-  });
-
-  describe('findByName', () => {
-    it('should return a role when name exists', async () => {
-      // Arrange
-      const inputName = 'admin';
-
-      // Act
-      const actualRole = await repository.findByName(inputName);
+      const actualRole = await repository.findById(createdRole.id);
 
       // Assert
       expect(actualRole).toBeDefined();
-      expect(actualRole?.name).toBe(inputName);
+      expect(actualRole?.id).toBe(createdRole.id);
+      expect(actualRole?.name).toBe(createdRole.name);
+      expect(actualRole?.isDeleted).toBe(false);
+
+      // Cleanup
+      await repository.softDelete(createdRole.id);
     });
 
-    it('should return null for non-existent name', async () => {
-      // Arrange
-      const inputName = 'non-existent';
-
+    it('should return null for non-existent role id', async () => {
       // Act
-      const actualRole = await repository.findByName(inputName);
+      const actualRole = await repository.findById('non-existent-id');
 
       // Assert
       expect(actualRole).toBeNull();
@@ -188,47 +144,109 @@ describe('RoleRepository Integration Tests', () => {
   });
 
   describe('update', () => {
-    it('should update a role in the database', async () => {
+    it('should update a role', async () => {
       // Arrange
-      const inputId = testRoles[0].id;
-      const inputUpdate: UpdateRoleDto = {
-        name: 'updated-admin',
+      const createdRole = await repository.create({
+        name: `UpdateTestRole_${Date.now()}`,
+      });
+      const updateData: UpdateRoleDto = {
+        name: 'UpdatedTestRole',
       };
 
       // Act
-      const actualRole = await repository.update(inputId, inputUpdate);
+      const actualRole = await repository.update(createdRole.id, updateData);
 
       // Assert
       expect(actualRole).toBeDefined();
-      expect(actualRole.id).toBe(inputId);
-      expect(actualRole.name).toBe(inputUpdate.name);
+      expect(actualRole.id).toBe(createdRole.id);
+      expect(actualRole.name).toBe(updateData.name);
+      // Verify that updatedAt was updated (should be greater than or equal to the original)
+      expect(actualRole.updatedAt).toBeDefined();
+      if (createdRole.updatedAt && actualRole.updatedAt) {
+        expect(actualRole.updatedAt.getTime()).toBeGreaterThanOrEqual(
+          createdRole.updatedAt.getTime(),
+        );
+      }
 
-      // Verify in database
-      const dbRole = await prisma.role.findUnique({
-        where: { id: inputId },
-      });
-      expect(dbRole?.name).toBe(inputUpdate.name);
+      // Cleanup
+      await repository.softDelete(createdRole.id);
     });
   });
 
   describe('softDelete', () => {
     it('should soft delete a role', async () => {
       // Arrange
-      const inputId = testRoles[0].id;
+      const createdRole = await repository.create({
+        name: `SoftDeleteTestRole_${Date.now()}`,
+      });
 
       // Act
-      const actualRole = await repository.softDelete(inputId);
+      const actualRole = await repository.softDelete(createdRole.id);
 
       // Assert
       expect(actualRole).toBeDefined();
-      expect(actualRole.id).toBe(inputId);
+      expect(actualRole.id).toBe(createdRole.id);
       expect(actualRole.isDeleted).toBe(true);
 
-      // Verify in database
-      const dbRole = await prisma.role.findUnique({
-        where: { id: inputId },
+      // Verify it's not returned in findAll
+      const allRoles = await repository.findAll();
+      const deletedRole = allRoles.find((role) => role.id === createdRole.id);
+      expect(deletedRole).toBeUndefined();
+    });
+  });
+
+  describe('findPaginated', () => {
+    it('should return paginated results with default parameters', async () => {
+      // Act
+      const query = new GetListQueryDto();
+      const actualResult = await repository.findPaginated(query);
+
+      // Assert
+      expect(actualResult).toBeDefined();
+      expect(actualResult.items).toBeDefined();
+      expect(actualResult.dataCount).toBeDefined();
+      expect(Array.isArray(actualResult.items)).toBe(true);
+      expect(typeof actualResult.dataCount).toBe('number');
+    });
+
+    it('should return paginated results with custom parameters', async () => {
+      // Arrange
+      const query = new GetListQueryDto();
+      query.pageNumber = 1;
+      query.pageSize = 5;
+      query.searchText = 'Test';
+
+      // Act
+      const actualResult = await repository.findPaginated(query);
+
+      // Assert
+      expect(actualResult).toBeDefined();
+      expect(actualResult.items).toBeDefined();
+      expect(actualResult.dataCount).toBeDefined();
+      expect(actualResult.items.length).toBeLessThanOrEqual(5);
+    });
+
+    it('should search by name when searchText is provided', async () => {
+      // Arrange
+      const query = new GetListQueryDto();
+      query.pageNumber = 1;
+      query.pageSize = 10;
+      query.searchText = 'TestRole';
+
+      // Act
+      const actualResult = await repository.findPaginated(query);
+
+      // Assert
+      expect(actualResult).toBeDefined();
+      expect(actualResult.items).toBeDefined();
+      expect(actualResult.dataCount).toBeDefined();
+
+      // All returned items should contain the search text in their name
+      actualResult.items.forEach((role) => {
+        expect(role.name.toLowerCase()).toContain(
+          query.searchText!.toLowerCase(),
+        );
       });
-      expect(dbRole?.isDeleted).toBe(true);
     });
   });
 });

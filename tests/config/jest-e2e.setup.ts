@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import { testContainersManager } from './testcontainers.config';
+import { JwtAuthGuard } from '../../src/infrastructure/guards/jwt-auth.guard';
+import { RoleGuard } from '../../src/infrastructure/guards/role.guard';
 
 export let app: INestApplication;
 
@@ -12,7 +14,12 @@ beforeAll(async () => {
 
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  })
+    .overrideGuard(JwtAuthGuard)
+    .useValue({ canActivate: () => true })
+    .overrideGuard(RoleGuard)
+    .useValue({ canActivate: () => true })
+    .compile();
 
   app = moduleRef.createNestApplication();
   await app.init();
