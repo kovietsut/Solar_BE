@@ -11,6 +11,6 @@
   },
   "testTimeout": 30000,
   "setupFilesAfterEnv": ["<rootDir>/tests/config/jest-e2e.setup.ts"],
-  "maxWorkers": "50%",
+  "maxWorkers": 1,
   "globalTeardown": "<rootDir>/tests/config/jest-global-teardown.ts"
 }

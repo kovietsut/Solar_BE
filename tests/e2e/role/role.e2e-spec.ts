@@ -4,6 +4,7 @@ import { PrismaService } from '../../../src/infrastructure/repositories/prisma.s
 import { CreateRoleDto } from '../../../src/infrastructure/dtos/role/create-role.dto';
 import { UpdateRoleDto } from '../../../src/infrastructure/dtos/role/update-role.dto';
 import { ROLES } from '../../../src/shared/constants/roles.constants';
+import { getTestApp } from '../../config/jest-e2e.setup';
 
 /**
  * E2E test suite for Role endpoints
@@ -27,10 +28,8 @@ describe('Role E2E Tests', () => {
   const mockAdminToken = 'mock-admin-jwt-token';
 
   beforeAll(async () => {
-    // Import the shared app instance from the global setup
-    const { app: sharedApp } = await import('../../config/jest-e2e.setup');
-    app = sharedApp;
-
+    // Get the shared app instance from the global setup
+    app = getTestApp();
     prismaService = app.get<PrismaService>(PrismaService);
 
     // Clean up test data before running tests

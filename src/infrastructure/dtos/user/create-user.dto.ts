@@ -5,6 +5,7 @@ import {
   IsString,
   Matches,
   MinLength,
+  IsOptional,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -32,10 +33,12 @@ export class CreateUserDto {
   password: string;
 
   @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
   address?: string;
 
   @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
   avatarPath?: string;
 
