@@ -5,6 +5,7 @@ import { CreateRoleDto } from '../../../src/infrastructure/dtos/role/create-role
 import { UpdateRoleDto } from '../../../src/infrastructure/dtos/role/update-role.dto';
 import { PrismaRole } from '../../../src/infrastructure/types/prisma-role.type';
 import { NotFoundException, ConflictException } from '@nestjs/common';
+import { ROLE_REPOSITORY } from '../../../src/infrastructure/constants/injection-tokens';
 
 /**
  * Test suite for RoleService
@@ -20,6 +21,9 @@ describe('RoleService', () => {
     isDeleted: false,
     createdAt: new Date(),
     updatedAt: new Date(),
+    createdBy: null,
+    updatedBy: null,
+    users: [],
   };
 
   beforeEach(async () => {
@@ -37,7 +41,7 @@ describe('RoleService', () => {
       providers: [
         RoleService,
         {
-          provide: RoleRepository,
+          provide: ROLE_REPOSITORY,
           useValue: mockRoleRepository,
         },
       ],

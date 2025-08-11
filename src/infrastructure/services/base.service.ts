@@ -1,8 +1,9 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { GetListQueryDto } from '../dtos/common/get-list-query.dto';
 import { IBaseRepository } from '../repositories/interfaces/base.repository.interface';
+import { BaseEntity } from '../../domain/entities/base.entity';
 
-export abstract class BaseService<T, CreateDto, UpdateDto> {
+export abstract class BaseService<T extends BaseEntity, CreateDto, UpdateDto> {
   constructor(
     protected readonly repository: IBaseRepository<T>,
     protected readonly uniqueFields: string[] = [],
@@ -37,6 +38,21 @@ export abstract class BaseService<T, CreateDto, UpdateDto> {
 
   async update(id: string, updateDto: UpdateDto): Promise<T> {
     await this.findOne(id);
+
+    // Check for unique field conflicts (excluding the current entity)
+    for (const field of this.uniqueFields) {
+      if (updateDto[field] !== undefined) {
+        const existing = await this.repository.findOne({
+          [field]: updateDto[field],
+        });
+        if (existing && existing.id !== id) {
+          throw new ConflictException(
+            `Entity with ${field} ${updateDto[field]} already exists`,
+          );
+        }
+      }
+    }
+
     return this.repository.update(id, updateDto);
   }
 

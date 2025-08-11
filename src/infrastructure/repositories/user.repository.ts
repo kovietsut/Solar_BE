@@ -57,10 +57,10 @@ export class UserRepository
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const updateData: any = { ...updateUserDto };
-    if (updateUserDto.password) {
+    if (updateUserDto.password && updateUserDto.password.trim() !== '') {
       updateData.passwordHash = await bcrypt.hash(updateUserDto.password, 10);
-      delete updateData.password;
     }
+    delete updateData.password; // Always remove password field
 
     return this.prisma.user.update({
       where: { id },

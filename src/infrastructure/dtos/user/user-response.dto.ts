@@ -45,6 +45,10 @@ export class UserResponseDto {
   @ApiProperty()
   updatedAt: Date;
 
+  @Expose()
+  @ApiProperty()
+  isDeleted: boolean;
+
   constructor(partial: Partial<User>) {
     Object.assign(this, partial);
   }

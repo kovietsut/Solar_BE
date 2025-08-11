@@ -33,6 +33,9 @@ describe('RoleRepository Integration Tests', () => {
 
   beforeEach(async () => {
     // Clean up the test database before each test
+    // Delete in correct order to avoid foreign key constraint issues
+    // Users depend on roles, so delete users first
+    await prisma.authMethod.deleteMany();
     await prisma.user.deleteMany();
     await prisma.role.deleteMany();
 
@@ -51,14 +54,16 @@ describe('RoleRepository Integration Tests', () => {
         },
       }) as Promise<PrismaRole>,
     ]);
-  });
+  }, 10000); // Increase timeout for database operations
 
   afterAll(async () => {
     // Clean up after all tests
+    // Delete in correct order to avoid foreign key constraint issues
+    await prisma.authMethod.deleteMany();
     await prisma.user.deleteMany();
     await prisma.role.deleteMany();
     await prisma.$disconnect();
-  });
+  }, 10000); // Increase timeout for cleanup operations
 
   describe('create', () => {
     it('should create a new role in the database', async () => {

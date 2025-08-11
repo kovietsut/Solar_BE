@@ -17,9 +17,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "jest --config ./test/jest-e2e.json tests/e2e",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest --config jest-integration.config.js",
+    "test:integration": "jest tests/integration --testTimeout=30000",
+    "test:user": "npm run test:unit -- --testPathPattern=user && npm run test:integration -- --testPathPattern=user && npm run test:e2e -- --testPathPattern=user",
     "setup:test-db": "ts-node tests/scripts/setup-test-db.ts"
   },
   "dependencies": {
