@@ -14,7 +14,6 @@ describe('UserController (e2e)', () => {
   let app: INestApplication;
   let prismaService: PrismaService;
   let testRole: Role;
-  let testUser: User;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -125,7 +124,6 @@ describe('UserController (e2e)', () => {
 
     it('should return 400 for invalid email format', async () => {
       // Arrange
-      const timestamp = Date.now();
       const invalidUserDto = {
         email: 'invalid-email',
         name: 'Test User',

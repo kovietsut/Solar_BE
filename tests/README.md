@@ -1,61 +1,43 @@
-# Testing Guide
+# Testing with Testcontainers
 
-This directory contains comprehensive tests for the Solar Backend application, following NestJS testing best practices and the project's testing standards.
+This project uses Testcontainers to provide isolated, disposable test databases for integration and E2E tests.
 
-## Test Structure
+## Benefits
 
-The tests are organized into three main categories:
+- **Isolation**: Each test run gets its own database container
+- **No Conflicts**: Multiple developers can run tests simultaneously without conflicts
+- **Automatic Cleanup**: Containers are automatically removed when tests complete
+- **No Manual Setup**: No need to create/cleanup test databases manually
+- **Consistent Environment**: Tests run against the same database version and configuration
 
-### 1. Unit Tests (`tests/unit/`)
+## How It Works
 
-- **Purpose**: Test individual components in isolation
-- **Location**: `tests/unit/`
-- **Scope**: Controllers, Services, and individual methods
-- **Dependencies**: Mocked external dependencies
-- **Speed**: Fastest execution
+1. **Container Management**: The `TestContainersManager` singleton manages MySQL containers
+2. **Automatic Startup**: Containers start automatically when tests begin
+3. **Migration Execution**: Prisma migrations run automatically on the test database
+4. **Automatic Cleanup**: Containers stop and remove themselves after tests complete
 
-### 2. Integration Tests (`tests/integration/`)
+## Test Types
 
-- **Purpose**: Test component interactions and database operations
-- **Location**: `tests/integration/`
-- **Scope**: Repository operations, service interactions
-- **Dependencies**: Real database connections
-- **Speed**: Medium execution speed
+### Unit Tests (`tests/unit/`)
 
-### 3. End-to-End Tests (`tests/e2e/`)
+- No database access
+- Use mocked dependencies
+- Fast execution
 
-- **Purpose**: Test complete HTTP request flows
-- **Location**: `tests/e2e/`
-- **Scope**: Full application stack, HTTP endpoints
-- **Dependencies**: Complete application with real database
-- **Speed**: Slowest execution
+### Integration Tests (`tests/integration/`)
 
-## User Module Tests
+- Use Testcontainers database
+- Test repository and service logic
+- Medium execution time
 
-The user module has comprehensive test coverage across all three testing levels:
+### E2E Tests (`tests/e2e/`)
 
-### Unit Tests
-
-- **`tests/unit/user/user.service.spec.ts`**: Tests UserService business logic
-- **`tests/unit/user/user.controller.spec.ts`**: Tests UserController HTTP handling
-
-### Integration Tests
-
-- **`tests/integration/user/user.repository.integration.spec.ts`**: Tests UserRepository database operations
-
-### E2E Tests
-
-- **`tests/e2e/user/user.e2e-spec.ts`**: Tests complete user API endpoints
+- Use Testcontainers database
+- Test full HTTP request/response cycle
+- Slower execution time
 
 ## Running Tests
-
-### Prerequisites
-
-- Node.js and npm installed
-- Database configured and accessible
-- Environment variables set up
-
-### Available Test Scripts
 
 ```bash
 # Run all tests
@@ -70,199 +52,69 @@ npm run test:integration
 # Run E2E tests only
 npm run test:e2e
 
-# Run tests with coverage
-npm run test:cov
+# Run user-related tests (unit + integration + e2e)
+npm run test:user
 
-# Run tests in watch mode
-npm run test:watch
-
-# Run specific test file
-npm test -- user.service.spec.ts
-
-# Run tests matching pattern
-npm test -- --testPathPattern=user
+# Test Testcontainers setup
+npm run test:testcontainers
 ```
 
-### Running User Module Tests Specifically
+### Testcontainers Configuration
 
-```bash
-# Run all user module tests
-npm test -- --testPathPattern=user
-
-# Run only user unit tests
-npm run test:unit -- --testPathPattern=user
-
-# Run only user integration tests
-npm run test:integration -- --testPathPattern=user
-
-# Run only user E2E tests
-npm run test:e2e -- --testPathPattern=user
-```
-
-### Using the Test Runner Script
-
-```bash
-# Make the script executable
-chmod +x tests/scripts/run-user-tests.ts
-
-# Run the script
-npx ts-node tests/scripts/run-user-tests.ts
-```
-
-## Test Configuration
+- **File**: `tests/config/testcontainers.config.ts`
+- **Database**: MySQL 8.0
+- **Credentials**: testuser/testpassword
+- **Database**: testdb
+- **Port**: Dynamically assigned
 
 ### Jest Configuration
 
-Tests use Jest as the testing framework with the following configuration:
+- **Unit Tests**: 60 second timeout
+- **Integration Tests**: 60 second timeout
+- **E2E Tests**: 60 second timeout
 
-- **Test Environment**: Node.js
-- **Coverage**: Istanbul/nyc
-- **Timeout**: 30 seconds for integration/E2E tests
-- **Setup**: Automatic test database management
+## Environment Variables
 
-### Database Configuration
+The following environment variables are used if `TEST_DATABASE_URL` is not set:
 
-- **Test Database**: Separate test database instance
-- **Cleanup**: Automatic cleanup between tests
-- **Isolation**: Each test runs in isolation
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `DATABASE_HOST`
+- `DATABASE_PORT`
+- `DATABASE_TEST_NAME`
 
-## Writing Tests
+### Container Startup Issues
 
-### Test Naming Convention
+- Ensure Docker is running
+- Check available disk space
+- Verify Docker permissions
 
-- **Unit Tests**: `*.spec.ts`
-- **Integration Tests**: `*.integration.spec.ts`
-- **E2E Tests**: `*.e2e-spec.ts`
+### Migration Issues
 
-### Test Structure
+- Ensure Prisma schema is up to date
+- Check migration files in `src/domain/migrations/`
 
-Follow the **Arrange-Act-Assert** pattern:
+### Timeout Issues
 
-```typescript
-describe('ComponentName', () => {
-  describe('methodName', () => {
-    it('should do something successfully', async () => {
-      // Arrange - Set up test data and mocks
-      const inputData = {
-        /* test data */
-      };
-      const expectedResult = {
-        /* expected result */
-      };
+- Increase Jest timeout in package.json
+- Check container logs for startup delays
 
-      // Act - Execute the method being tested
-      const actualResult = await component.methodName(inputData);
+## Migration
 
-      // Assert - Verify the results
-      expect(actualResult).toEqual(expectedResult);
-    });
-  });
-});
+- ✅ `tests/config/testcontainers.config.ts` (new)
+- ✅ `npm run test:testcontainers` (new)
+
+## Architecture
+
 ```
+TestContainersManager (Singleton)
+├── startContainer() → TestContainerConfig
+├── stopContainer() → void
+├── getPrismaClient() → PrismaClient
+└── getDatabaseUrl() → string
 
-### Mocking Guidelines
-
-- **Unit Tests**: Mock all external dependencies
-- **Integration Tests**: Use real database, mock external services
-- **E2E Tests**: Use real application stack
-
-## Test Data Management
-
-### Test Fixtures
-
-- Create test data in `beforeEach` hooks
-- Clean up test data in `afterEach` hooks
-- Use unique identifiers to avoid conflicts
-
-### Database Cleanup
-
-```typescript
-afterEach(async () => {
-  await prismaService.user.deleteMany({
-    where: { email: { contains: 'test@example.com' } },
-  });
-});
+TestContainerConfig
+├── container: StartedTestContainer
+├── databaseUrl: string
+└── prismaClient: PrismaClient
 ```
-
-## Common Testing Patterns
-
-### Testing Async Operations
-
-```typescript
-it('should handle async operation', async () => {
-  await expect(asyncFunction()).resolves.toEqual(expectedResult);
-});
-```
-
-### Testing Error Cases
-
-```typescript
-it('should throw error for invalid input', async () => {
-  await expect(asyncFunction(invalidInput)).rejects.toThrow(Error);
-});
-```
-
-### Testing HTTP Responses
-
-```typescript
-it('should return correct HTTP response', async () => {
-  const response = await request(app.getHttpServer()).get('/users').expect(200);
-
-  expect(response.body.data).toBeDefined();
-});
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Errors**
-
-   - Verify database is running
-   - Check environment variables
-   - Ensure test database exists
-
-2. **Test Timeout Errors**
-
-   - Increase Jest timeout for slow tests
-   - Check for hanging database connections
-   - Verify cleanup is working properly
-
-3. **Mock Issues**
-   - Ensure mocks are properly configured
-   - Check import paths
-   - Verify mock implementations
-
-### Debug Mode
-
-Run tests with verbose output:
-
-```bash
-npm test -- --verbose --detectOpenHandles
-```
-
-## Best Practices
-
-1. **Test Isolation**: Each test should be independent
-2. **Descriptive Names**: Use clear, descriptive test names
-3. **Single Assertion**: Test one thing per test case
-4. **Proper Setup/Teardown**: Clean up resources properly
-5. **Realistic Data**: Use realistic test data
-6. **Error Testing**: Test both success and failure scenarios
-7. **Performance**: Keep tests fast and efficient
-
-## Coverage Goals
-
-- **Unit Tests**: 90%+ coverage
-- **Integration Tests**: 80%+ coverage
-- **E2E Tests**: 70%+ coverage
-
-## Contributing
-
-When adding new tests:
-
-1. Follow the existing naming conventions
-2. Use the established test patterns
-3. Ensure proper cleanup and isolation
-4. Add appropriate error case testing
-5. Update this documentation if needed

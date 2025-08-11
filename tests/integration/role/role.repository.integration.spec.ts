@@ -5,7 +5,10 @@ import { Role } from '../../../src/domain/entities/role.entity';
 import { CreateRoleDto } from '../../../src/infrastructure/dtos/role/create-role.dto';
 import { UpdateRoleDto } from '../../../src/infrastructure/dtos/role/update-role.dto';
 import { PrismaRole } from '../../../src/infrastructure/types/prisma-role.type';
-import { createTestPrismaClient } from '../../config/test-database.config';
+import {
+  createTestPrismaClient,
+  cleanupTestDatabase,
+} from '../../config/test-database.config';
 
 /**
  * Integration test suite for RoleRepository
@@ -22,7 +25,7 @@ describe('RoleRepository Integration Tests', () => {
         RoleRepository,
         {
           provide: PrismaService,
-          useFactory: () => createTestPrismaClient(),
+          useFactory: async () => await createTestPrismaClient(),
         },
       ],
     }).compile();
@@ -63,6 +66,9 @@ describe('RoleRepository Integration Tests', () => {
     await prisma.user.deleteMany();
     await prisma.role.deleteMany();
     await prisma.$disconnect();
+
+    // Clean up the test container
+    await cleanupTestDatabase();
   }, 10000); // Increase timeout for cleanup operations
 
   describe('create', () => {

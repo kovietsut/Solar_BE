@@ -6,7 +6,10 @@ import { UpdateUserDto } from '../../../src/infrastructure/dtos/user/update-user
 import { GetListQueryDto } from '../../../src/infrastructure/dtos/common/get-list-query.dto';
 import { User } from '../../../src/domain/entities/user.entity';
 import { Role } from '../../../src/domain/entities/role.entity';
-import { createTestPrismaClient } from '../../config/test-database.config';
+import {
+  createTestPrismaClient,
+  cleanupTestDatabase,
+} from '../../config/test-database.config';
 
 describe('UserRepository Integration', () => {
   let repository: UserRepository;
@@ -20,7 +23,7 @@ describe('UserRepository Integration', () => {
 
   beforeAll(async () => {
     // Clean up any existing test data from previous runs
-    const testPrisma = createTestPrismaClient();
+    const testPrisma = await createTestPrismaClient();
     await testPrisma.user.deleteMany({
       where: {
         email: {
@@ -41,10 +44,11 @@ describe('UserRepository Integration', () => {
       },
     });
     await testPrisma.$disconnect();
-  });
+  }, 120000); // Increase timeout to 2 minutes for container startup
 
   afterAll(async () => {
-    // Test database cleanup would go here in a real scenario
+    // Clean up the test container
+    await cleanupTestDatabase();
   });
 
   beforeEach(async () => {
@@ -53,7 +57,7 @@ describe('UserRepository Integration', () => {
         UserRepository,
         {
           provide: PrismaService,
-          useValue: createTestPrismaClient(),
+          useFactory: async () => await createTestPrismaClient(),
         },
       ],
     }).compile();
