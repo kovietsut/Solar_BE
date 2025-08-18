@@ -1,14 +1,14 @@
 /*
   Warnings:
 
-  - You are about to drop the `authmethod` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `AuthMethod` table. If the table is not empty, all the data it contains will be lost.
 
 */
 -- DropForeignKey
-ALTER TABLE `authmethod` DROP FOREIGN KEY `AuthMethod_userId_fkey`;
+ALTER TABLE `AuthMethod` DROP FOREIGN KEY `AuthMethod_userId_fkey`;
 
 -- DropTable
-DROP TABLE `authmethod`;
+DROP TABLE `AuthMethod`;
 
 -- CreateTable
 CREATE TABLE `auth_methods` (

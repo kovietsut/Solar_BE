@@ -76,9 +76,13 @@ $ npm run db:generate
 $ npm run db:migrate:dev     # Create and apply new migration
 $ npm run db:seed           # Seed with development data
 
-# Production deployment
-$ npm run db:migrate        # Deploy migrations
+# Production deployment (IMPORTANT: Use these exact commands)
+$ npm run db:generate       # Generate Prisma client first
+$ npm run db:migrate        # Deploy migrations (uses prisma migrate deploy)
 $ npm run db:seed:prod      # Seed with production data
+
+# For fresh production setup
+$ npm run db:generate && npm run db:migrate && npm run db:seed:prod
 
 # Database utilities
 $ npm run db:push           # Push schema changes (development only)
@@ -90,6 +94,39 @@ $ npm run db help           # Show all available commands
 $ npm run db setup          # Interactive setup
 $ npm run db migrate        # Interactive migration
 ```
+
+## 🚀 Production Deployment
+
+### Environment Consistency
+
+To ensure both development and production environments have the same database structure:
+
+1. **Always use migration commands** (never `db:push` in production)
+2. **Follow the exact deployment sequence** shown above
+3. **Test migrations locally first** using `npm run db:reset` to verify the complete flow
+
+### Production Deployment Checklist
+
+```bash
+# 1. Backup production database (if existing)
+# 2. Generate Prisma client
+npm run db:generate
+
+# 3. Deploy migrations (this applies all pending migrations)
+npm run db:migrate
+
+# 4. Seed production data
+npm run db:seed:prod
+
+# 5. Verify deployment
+npm run db:generate  # Should show no changes needed
+```
+
+### Common Issues
+
+- **Migration fails with "table doesn't exist"**: This means migration history is inconsistent. Contact the development team.
+- **Different table names in dev vs prod**: Use the migration commands above, never `db:push` in production.
+- **Schema drift**: Always use `prisma migrate dev` in development, never modify the database directly.
 
 ## Running the Application
 
