@@ -85,16 +85,6 @@ jobs:
           NODE_ENV: test
           CI: true
 
-      - name: Generate test coverage
-        run: npm run test:cov
-        env:
-          DATABASE_URL: mysql://solar_test_user:test_password@localhost:3306/solar_test_db
-          JWT_SECRET: test_jwt_secret
-          JWT_REFRESH_SECRET: test_refresh_secret
-          ENCRYPTION_KEY: test_encryption_key
-          NODE_ENV: test
-          CI: true
-
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
         with:
