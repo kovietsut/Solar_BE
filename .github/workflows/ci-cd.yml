@@ -324,6 +324,34 @@ jobs:
             echo "Pulling latest images..."
             docker-compose pull || echo "Pull failed, will build locally if needed"
             
+            # Check Docker and network connectivity
+            echo "=== Docker and Network Diagnostics ==="
+            echo "Docker version:"
+            docker --version || echo "Docker not available"
+            echo "Docker daemon status:"
+            docker info --format '{{.ServerVersion}}' || echo "Docker daemon not running"
+            echo "Network connectivity test:"
+            curl -I https://registry-1.docker.io/v2/ --max-time 10 || echo "Docker registry not reachable"
+            echo "DNS resolution test:"
+            nslookup registry-1.docker.io || echo "DNS resolution failed"
+            
+            # Try to configure Docker to prefer IPv4 and add registry mirrors
+            echo "Configuring Docker for IPv4 preference and registry mirrors..."
+            sudo mkdir -p /etc/docker
+            cat << 'DOCKER_CONFIG' | sudo tee /etc/docker/daemon.json
+            {
+              "ip6tables": false,
+              "ipv6": false,
+              "registry-mirrors": [
+                "https://mirror.gcr.io"
+              ],
+              "insecure-registries": [],
+              "dns": ["8.8.8.8", "8.8.4.4"]
+            }
+            DOCKER_CONFIG
+            sudo systemctl restart docker || echo "Failed to restart Docker daemon"
+            sleep 10
+            
             # Clear Docker build cache to ensure fresh build with new files
             echo "Clearing Docker build cache..."
             docker builder prune -f || echo "Failed to clear build cache, continuing..."
@@ -344,6 +372,22 @@ jobs:
             # Stop existing services
             echo "Stopping existing services..."
             docker-compose down
+            
+            # Pre-pull base images with retries to avoid build failures
+            echo "Pre-pulling base images..."
+            for i in {1..3}; do
+              echo "Attempt $i: Pulling node:24-alpine..."
+              if docker pull node:24-alpine; then
+                echo "Successfully pulled node:24-alpine"
+                break
+              else
+                echo "Failed to pull node:24-alpine (attempt $i/3)"
+                if [ $i -eq 3 ]; then
+                  echo "All pull attempts failed, will try to build anyway..."
+                fi
+                sleep 10
+              fi
+            done
             
             # Start services with fresh build (force rebuild to avoid cache issues)
             echo "Starting services with fresh build..."
