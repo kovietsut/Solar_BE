@@ -324,13 +324,30 @@ jobs:
             echo "Pulling latest images..."
             docker-compose pull || echo "Pull failed, will build locally if needed"
             
+            # Clear Docker build cache to ensure fresh build with new files
+            echo "Clearing Docker build cache..."
+            docker builder prune -f || echo "Failed to clear build cache, continuing..."
+            
+            # Verify all required build files are present
+            echo "=== Final Build Files Verification ==="
+            echo "Required files check:"
+            for file in tsconfig.json tsconfig.build.json package.json Dockerfile; do
+              if [ -f "$file" ]; then
+                echo "✓ $file exists"
+              else
+                echo "✗ $file MISSING"
+              fi
+            done
+            echo "Build context size:"
+            du -sh . || echo "Cannot calculate directory size"
+            
             # Stop existing services
             echo "Stopping existing services..."
             docker-compose down
             
-            # Start services with new image
-            echo "Starting services..."
-            docker-compose up -d
+            # Start services with fresh build (force rebuild to avoid cache issues)
+            echo "Starting services with fresh build..."
+            docker-compose up -d --build
             
             # Wait for services to start
             echo "Waiting for services to start..."
