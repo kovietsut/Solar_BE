@@ -208,23 +208,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug SSH key format
+      - name: Setup SSH
         run: |
+          # Create SSH directory
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Debug key format
           echo "Checking SSH key format..."
           echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" | head -1
-          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" | wc -l
-          echo "Key length: $(echo '${{ secrets.VPS_SSH_PRIVATE_KEY }}' | wc -c)"
+          echo "Key has $(echo '${{ secrets.VPS_SSH_PRIVATE_KEY }}' | wc -l) lines"
+          echo "Key length: $(echo '${{ secrets.VPS_SSH_PRIVATE_KEY }}' | wc -c) characters"
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-        env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          # Create private key file
+          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-      - name: Add VPS to known hosts
-        run: |
+          # Verify key format
+          echo "Verifying SSH key..."
+          if ssh-keygen -l -f ~/.ssh/id_rsa; then
+            echo "SSH key is valid"
+          else
+            echo "SSH key format error - trying to fix..."
+            # Try to fix common formatting issues
+            echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            if ssh-keygen -l -f ~/.ssh/id_rsa; then
+              echo "SSH key fixed (removed carriage returns)"
+            else
+              echo "SSH key is still invalid - please check the key format"
+              exit 1
+            fi
+          fi
+
+          # Add VPS to known hosts
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+          echo "SSH setup completed successfully"
 
       - name: Create deployment directory
         run: |
