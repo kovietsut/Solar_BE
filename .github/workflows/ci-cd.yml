@@ -247,6 +247,25 @@ jobs:
 
           echo "SSH setup completed successfully"
 
+      - name: Debug SSH connection
+        run: |
+          echo "=== SSH Debug Information ==="
+          echo "VPS Host: ${{ secrets.VPS_HOST }}"
+          echo "VPS User: ${{ secrets.VPS_USER }}"
+          echo "Deploy Path: ${{ secrets.DEPLOY_PATH }}"
+          echo ""
+          echo "SSH Client Version:"
+          ssh -V
+          echo ""
+          echo "Private Key Info:"
+          ssh-keygen -l -f ~/.ssh/id_rsa
+          echo ""
+          echo "Public Key (for VPS setup):"
+          ssh-keygen -y -f ~/.ssh/id_rsa
+          echo ""
+          echo "Testing SSH connection with verbose output:"
+          ssh -o ConnectTimeout=10 -o BatchMode=yes -v ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'Connection successful'" || echo "SSH connection failed"
+
       - name: Create deployment directory
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.DEPLOY_PATH }}"
