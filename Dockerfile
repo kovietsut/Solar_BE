@@ -9,14 +9,26 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
+# Configure npm with retry settings for production dependencies
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-factor 2 && \
+    npm config set fetch-retry-mintimeout 10000 && \
+    npm config set fetch-retry-maxtimeout 60000 && \
+    npm ci --only=production --prefer-offline --no-audit --progress=false && \
+    npm cache clean --force
 
 # Install all dependencies (including dev) for building
 FROM base AS builder-deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci && npm cache clean --force
+# Configure npm with retry settings and install with retries
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-factor 2 && \
+    npm config set fetch-retry-mintimeout 10000 && \
+    npm config set fetch-retry-maxtimeout 60000 && \
+    npm ci --prefer-offline --no-audit --progress=false && \
+    npm cache clean --force
 
 # Rebuild the source code only when needed
 FROM base AS builder
