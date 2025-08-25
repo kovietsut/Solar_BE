@@ -147,6 +147,18 @@ jobs:
         run: |
           echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
 
+      - name: Verify image was pushed
+        run: |
+          echo "Verifying image was pushed to registry..."
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Checking image: $IMAGE_NAME"
+          if docker manifest inspect "$IMAGE_NAME"; then
+            echo "✅ Image successfully pushed to registry"
+          else
+            echo "❌ Failed to push image to registry"
+            exit 1
+          fi
+
   # Security Scanning
   security:
     name: Security Scan
@@ -217,17 +229,8 @@ jobs:
       - name: Copy deployment files to VPS
         run: |
           scp docker-compose.yml ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp Dockerfile ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp package.json ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp package-lock.json ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp tsconfig.json ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp tsconfig.build.json ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp nest-cli.json ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/ || echo "nest-cli.json not found, skipping"
-          scp .dockerignore ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/ || echo ".dockerignore not found, skipping"
           scp production.env.template ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp -r nginx ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp -r scripts ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          scp -r src ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
 
       - name: Setup SSL and Docker Authentication
         run: |
@@ -300,121 +303,27 @@ jobs:
           ENVEOF
             
             # Debug environment variables
-            echo "=== Environment Variables Check ==="
-            source .env
-            echo "DOCKER_REGISTRY: ${DOCKER_REGISTRY}"
-            echo "DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME}"
-            echo "DOCKER_TAG: ${DOCKER_TAG}"
-            echo "Full image name will be: ${DOCKER_REGISTRY}${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
-            echo "Checking if .env file was created:"
-            ls -la .env
-            echo "First few lines of .env:"
-            head -5 .env
+            echo "Environment variables configured successfully"
             
-            # Check build context files
-            echo "=== Build Context Check ==="
-            echo "Files in deployment directory:"
-            ls -la
-            echo "TypeScript config files:"
-            ls -la tsconfig*.json nest-cli.json 2>/dev/null || echo "Some config files missing"
-            echo "Source files:"
-            ls -la src/ || echo "src/ directory not found"
-            
-            # Pull latest images (with fallback to build)
-            echo "Pulling latest images..."
-            docker-compose pull || echo "Pull failed, will build locally if needed"
-            
-            # Check Docker and network connectivity
-            echo "=== Docker and Network Diagnostics ==="
-            echo "Docker version:"
-            docker --version || echo "Docker not available"
-            echo "Docker daemon status:"
-            docker info --format '{{.ServerVersion}}' || echo "Docker daemon not running"
-            echo "Network connectivity test:"
-            curl -I https://registry-1.docker.io/v2/ --max-time 10 || echo "Docker registry not reachable"
-            echo "DNS resolution test:"
-            nslookup registry-1.docker.io || echo "DNS resolution failed"
-            
-            # Try to configure Docker to prefer IPv4 and add registry mirrors
-            echo "Configuring Docker for IPv4 preference and registry mirrors..."
-            sudo mkdir -p /etc/docker
-            echo '{
-              "ip6tables": false,
-              "ipv6": false,
-              "registry-mirrors": ["https://mirror.gcr.io"],
-              "insecure-registries": [],
-              "dns": ["8.8.8.8", "8.8.4.4"]
-            }' | sudo tee /etc/docker/daemon.json > /dev/null
-            echo "Docker daemon.json created successfully"
-            sudo systemctl restart docker || echo "Failed to restart Docker daemon"
-            sleep 10
-            
-            # Clear Docker build cache to ensure fresh build with new files
-            echo "Clearing Docker build cache..."
-            docker builder prune -f || echo "Failed to clear build cache, continuing..."
-            
-            # Verify all required build files are present
-            echo "=== Final Build Files Verification ==="
-            echo "Required files check:"
-            for file in tsconfig.json tsconfig.build.json package.json Dockerfile; do
-              if [ -f "$file" ]; then
-                echo "✓ $file exists"
-              else
-                echo "✗ $file MISSING"
-              fi
-            done
-            echo "Build context size:"
-            du -sh . || echo "Cannot calculate directory size"
+            # Pull latest images from registry
+            echo "Pulling latest images from registry..."
+            docker-compose pull
             
             # Stop existing services
             echo "Stopping existing services..."
             docker-compose down
             
-            # Pre-pull base images with retries to avoid build failures
-            echo "Pre-pulling base images..."
-            for i in {1..3}; do
-              echo "Attempt $i: Pulling node:24-alpine..."
-              if docker pull node:24-alpine; then
-                echo "Successfully pulled node:24-alpine"
-                break
-              else
-                echo "Failed to pull node:24-alpine (attempt $i/3)"
-                if [ $i -eq 3 ]; then
-                  echo "All pull attempts failed, will try to build anyway..."
-                fi
-                sleep 10
-              fi
-            done
-            
-            # Start services with fresh build (force rebuild to avoid cache issues)
-            echo "Starting services with fresh build..."
-            docker-compose up -d --build
+            # Start services with pre-built images
+            echo "Starting services with pre-built images..."
+            docker-compose up -d
             
             # Wait for services to start
             echo "Waiting for services to start..."
             sleep 10
             
-            # Check what's running
-            echo "=== Services Status After Start ==="
+            # Check services status
+            echo "=== Services Status ==="
             docker-compose ps
-            
-            # Check logs if services failed
-            echo "=== Docker Compose Logs ==="
-            docker-compose logs --tail=50 || echo "No logs available"
-            
-            # If no containers running, try to start them manually with verbose output
-            if [ $(docker-compose ps -q | wc -l) -eq 0 ]; then
-              echo "=== No containers running, attempting manual start with verbose output ==="
-              docker-compose up --no-start
-              echo "=== Trying to start services one by one ==="
-              docker-compose start mysql && echo "MySQL started" || echo "MySQL failed to start"
-              sleep 5
-              docker-compose start app && echo "App started" || echo "App failed to start"  
-              sleep 5
-              docker-compose start nginx && echo "Nginx started" || echo "Nginx failed to start"
-              echo "=== Final status after manual start ==="
-              docker-compose ps
-            fi
             
             # Run database migrations
             docker-compose exec -T app npm run db:migrate
@@ -432,38 +341,14 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             cd ${{ secrets.DEPLOY_PATH }}
             
-            echo "=== Final Container Status ==="
+            echo "=== Deployment Status ==="
             docker-compose ps
             
-            echo "=== Port Usage Check ==="
-            sudo netstat -tulpn | grep :80 || echo "Port 80 not in use"
-            sudo netstat -tulpn | grep :443 || echo "Port 443 not in use"
-            sudo netstat -tulpn | grep :3306 || echo "Port 3306 not in use"
+            echo "=== Health Check ==="
+            curl -f http://localhost/health || echo "Health check failed"
             
-            echo "=== System Services Check ==="
-            sudo systemctl status nginx --no-pager || echo "System nginx not running"
-            sudo systemctl status apache2 --no-pager || echo "Apache not running"
-            
-            echo "=== Docker Compose Logs (All Services) ==="
-            docker-compose logs --tail=30
-            
-            echo "=== Docker Images Available ==="
-            docker images | grep -E "(solar|mysql|nginx)" || echo "No relevant images found"
-            
-            echo "=== Environment Variables ==="
-            echo "DOCKER_REGISTRY: ${DOCKER_REGISTRY}"
-            echo "DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME}"
-            echo "DOCKER_TAG: ${DOCKER_TAG}"
-            
-            echo "=== Docker Compose Configuration Check ==="
-            docker-compose config --quiet && echo "Docker Compose config is valid" || echo "Docker Compose config has errors"
-            
-            echo "=== .env File Contents ==="
-            head -10 .env || echo ".env file not found"
-            
-            echo "=== Docker System Info ==="
-            docker system df
-            docker version --format '{{.Server.Version}}' || echo "Docker daemon not running"
+            echo "=== Container Logs ==="
+            docker-compose logs --tail=20
           EOF
 
       - name: Health check
@@ -483,23 +368,17 @@ jobs:
           EOF
 
           # Wait for application to be ready
-          echo "Checking external health endpoint..."
-          for i in {1..10}; do
-            if curl -f http://${{ secrets.VPS_HOST }}/health 2>/dev/null; then
-              echo "Application is healthy!"
-              exit 0
-            elif curl -f http://${{ secrets.VPS_HOST }}:3000/health 2>/dev/null; then
-              echo "Application is healthy on port 3000!"
-              exit 0
-            elif curl -f http://${{ secrets.VPS_HOST }} 2>/dev/null; then
-              echo "Application is responding on root path (no /health endpoint)"
+          echo "Checking health endpoint..."
+          for i in {1..5}; do
+            if curl -f "https://${{ secrets.VPS_HOST }}/health" 2>/dev/null; then
+              echo "✅ Deployment successful"
               exit 0
             fi
-            echo "Waiting for application to be ready... ($i/10)"
-            sleep 15
+            echo "Waiting for application... ($i/5)"
+            sleep 10
           done
-          echo "Application health check failed - but deployment may still be successful"
-          exit 0
+          echo "⚠️ Health check timeout"
+          exit 1
 
   # Notification
   notify:

@@ -30,11 +30,8 @@ services:
 
   # NestJS Application
   app:
-    # Use pre-built image for production, build locally if not available
+    # Use pre-built image from registry
     image: ${DOCKER_REGISTRY:-}${DOCKER_IMAGE_NAME:-solar-api}:${DOCKER_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: ${COMPOSE_PROJECT_NAME:-solar}_app${ENVIRONMENT_SUFFIX:-}
     restart: ${RESTART_POLICY:-unless-stopped}
     environment:
