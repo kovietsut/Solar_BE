@@ -25,7 +25,7 @@ A NestJS-based REST API for Solar management system with role-based authenticati
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
+- Node.js (v24 or higher)
 - MySQL database
 - npm or yarn
 
@@ -149,3 +149,266 @@ Once the application is running, visit:
 
 - Swagger UI: `http://localhost:3000/api`
 - OpenAPI JSON: `http://localhost:3000/api-json`
+- Health Check: `http://localhost:3000/health`
+
+## 🐳 Docker & Containerization
+
+### Local Development with Docker
+
+```bash
+# Build and run with Docker Compose
+$ docker-compose up -d
+
+# View logs
+$ docker-compose logs -f
+
+# Stop services
+$ docker-compose down
+
+# Rebuild services
+$ docker-compose up --build -d
+```
+
+### Production Deployment with Docker
+
+```bash
+# Set production environment variables
+$ cp production.env.template .env
+# Edit .env with your production values
+
+# Deploy with production settings
+$ docker-compose up -d
+
+# Scale the application
+$ docker-compose up --scale app=3 -d
+```
+
+### Environment Configuration
+
+#### Quick Setup Scripts
+
+For **Development**:
+
+```bash
+$ ./scripts/setup-dev.sh
+```
+
+For **Production**:
+
+```bash
+$ ./scripts/setup-prod.sh
+```
+
+#### Manual Setup
+
+1. **Development**: Copy the development template:
+
+```bash
+$ cp development.env.template .env
+```
+
+2. **Production**: Copy the production template:
+
+```bash
+$ cp production.env.template .env
+# Edit with your actual production values
+```
+
+The unified `docker-compose.yml` automatically adapts based on environment variables:
+
+- **Development**: Builds locally, uses development settings
+- **Production**: Uses pre-built images, production settings
+
+## 🚀 CI/CD Pipeline
+
+### GitHub Actions Setup
+
+The project includes a comprehensive CI/CD pipeline that:
+
+1. **Continuous Integration**:
+
+   - Runs unit, integration, and E2E tests
+   - Performs security scans
+   - Builds Docker images
+   - Pushes to GitHub Container Registry
+
+2. **Continuous Deployment**:
+   - Deploys to VPS server automatically on `main` branch
+   - Runs database migrations
+   - Performs health checks
+   - Sends notifications
+
+### Required GitHub Secrets
+
+Configure these secrets in your GitHub repository (`Settings > Secrets and variables > Actions`):
+
+```bash
+# VPS Server Configuration
+VPS_HOST=your.server.ip.address
+VPS_USER=deploy
+VPS_SSH_PRIVATE_KEY=your_private_ssh_key_content
+
+# Database Configuration
+MYSQL_ROOT_PASSWORD=your_secure_root_password
+MYSQL_DATABASE=solar_db
+MYSQL_USER=solar_user
+MYSQL_PASSWORD=your_secure_password
+
+# JWT Configuration
+JWT_SECRET=your_super_secret_jwt_key_64_chars_minimum
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=your_super_secret_refresh_key_64_chars_minimum
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Deployment Configuration
+DEPLOY_PATH=/opt/solar-api
+
+# Optional: Slack Notifications
+SLACK_WEBHOOK=your_slack_webhook_url
+```
+
+### VPS Server Setup
+
+1. **Prepare your VPS server**:
+
+```bash
+# Run the VPS setup script on your server
+$ curl -fsSL https://raw.githubusercontent.com/your-username/solar-api/main/scripts/vps-setup.sh | bash
+
+# Or manually:
+$ scp scripts/vps-setup.sh user@your-server:~/
+$ ssh user@your-server
+$ chmod +x vps-setup.sh
+$ ./vps-setup.sh
+```
+
+2. **Setup SSL certificates**:
+
+```bash
+# For development (self-signed)
+$ ./scripts/setup-ssl.sh --type self-signed --domain your-domain.com
+
+# For production (Let's Encrypt)
+$ ./scripts/setup-ssl.sh --type letsencrypt --domain your-domain.com --email admin@your-domain.com
+```
+
+3. **Add SSH key for deployment**:
+
+```bash
+# Add your GitHub Actions public key to the deploy user
+$ ssh-copy-id deploy@your-server
+# Or manually add to /home/deploy/.ssh/authorized_keys
+```
+
+### Manual Deployment
+
+For manual deployment to your VPS:
+
+```bash
+# Set environment variables
+$ export VPS_HOST="your.server.ip.address"
+$ export VPS_USER="deploy"
+$ export MYSQL_ROOT_PASSWORD="your_password"
+$ export MYSQL_PASSWORD="your_password"
+$ export JWT_SECRET="your_jwt_secret"
+$ export JWT_REFRESH_SECRET="your_refresh_secret"
+
+# Run deployment script
+$ ./scripts/deploy.sh
+```
+
+### Deployment Features
+
+- **Zero-downtime deployment** with health checks
+- **Automatic database migrations**
+- **SSL/TLS termination** with Nginx
+- **Security headers** and rate limiting
+- **Automatic backups** before deployment
+- **Log rotation** and monitoring
+- **Container health checks**
+
+## 🔒 Security Features
+
+### Application Security
+
+- JWT-based authentication with refresh tokens
+- Role-based access control (RBAC)
+- Password hashing with bcrypt
+- Input validation and sanitization
+- Security headers (HSTS, CSP, etc.)
+
+### Infrastructure Security
+
+- Nginx reverse proxy with rate limiting
+- SSL/TLS encryption
+- Firewall configuration (UFW/firewalld)
+- Fail2ban for intrusion prevention
+- Docker security best practices
+- Non-root container execution
+
+### Environment Security
+
+- Environment variable encryption
+- Secret management with GitHub Secrets
+- SSH key-based authentication
+- Database connection encryption
+- Container image vulnerability scanning
+
+## 📊 Monitoring & Logging
+
+### Health Monitoring
+
+- Application health check endpoint: `/health`
+- Container health checks
+- Database connection monitoring
+- Nginx status monitoring
+
+### Logging
+
+- Structured JSON logging
+- Log rotation with retention policies
+- Centralized logging with Docker
+- Access logs with Nginx
+- Error tracking and alerting
+
+### Backup Strategy
+
+- Automatic database backups before deployment
+- Configurable backup retention
+- Application data backup
+- Configuration backup
+
+## 🛠️ Maintenance
+
+### Database Maintenance
+
+```bash
+# Create manual backup
+$ docker-compose exec mysql mysqldump -u root -p$MYSQL_ROOT_PASSWORD $MYSQL_DATABASE > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore from backup
+$ docker-compose exec -T mysql mysql -u root -p$MYSQL_ROOT_PASSWORD $MYSQL_DATABASE < backup_file.sql
+```
+
+### SSL Certificate Renewal
+
+```bash
+# Renew Let's Encrypt certificates (automatic via cron)
+$ ./scripts/setup-ssl.sh --validate
+
+# Manual renewal
+$ certbot renew --force-renewal
+```
+
+### Log Management
+
+```bash
+# View application logs
+$ docker-compose logs -f app
+
+# View nginx logs
+$ docker-compose logs -f nginx
+
+# Clean up old logs
+$ docker system prune -f
+```

@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: ${COMPOSE_PROJECT_NAME:-solar}_mysql${ENVIRONMENT_SUFFIX:-}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    networks:
+      - solar_network
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      timeout: 20s
+      retries: 10
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '${LOG_MAX_SIZE:-10m}'
+        max-file: '${LOG_MAX_FILE:-3}'
+
+  # NestJS Application
+  app:
+    # Use pre-built image for production, build locally for development
+    image: ${DOCKER_REGISTRY:-}${DOCKER_IMAGE_NAME:-solar-api}:${DOCKER_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME:-solar}_app${ENVIRONMENT_SUFFIX:-}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      PORT: 3000
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - solar_network
+    volumes:
+      - app_uploads:/app/uploads
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '${LOG_MAX_SIZE:-10m}'
+        max-file: '${LOG_MAX_FILE:-3}'
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-solar}_nginx${ENVIRONMENT_SUFFIX:-}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - app
+    networks:
+      - solar_network
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '${LOG_MAX_SIZE:-10m}'
+        max-file: '${LOG_MAX_FILE:-3}'
+
+volumes:
+  mysql_data:
+    driver: local
+  app_uploads:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  solar_network:
+    driver: bridge
