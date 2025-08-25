@@ -13,6 +13,12 @@ declare global {
 }
 
 beforeAll(async () => {
+  // Set test environment variables
+  process.env.ENCRYPTION_KEY =
+    'fbf6dee429a8b0f61fe5cb1c306dc97e0e07fa959544940e24d0b83b30cd99e9';
+  process.env.JWT_SECRET = 'test-jwt-secret-for-e2e-tests-only';
+  process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-for-e2e-tests-only';
+
   // Start the test container before creating the app
   console.log('Starting test container for E2E tests...');
   try {

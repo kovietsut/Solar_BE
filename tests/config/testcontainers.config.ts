@@ -43,13 +43,21 @@ export class TestContainersManager {
 
     this.container = await new GenericContainer('mysql:8.0')
       .withEnvironment({
-        MYSQL_ROOT_PASSWORD: 'testpassword',
-        MYSQL_DATABASE: 'testdb',
-        MYSQL_USER: 'testuser',
-        MYSQL_PASSWORD: 'testpassword',
+        MYSQL_ROOT_PASSWORD: 'test_password',
+        MYSQL_DATABASE: 'solar_test_db',
+        MYSQL_USER: 'solar_test_user',
+        MYSQL_PASSWORD: 'test_password',
       })
       .withExposedPorts(3306)
-      .withWaitStrategy(Wait.forLogMessage('ready for connections'))
+      .withWaitStrategy(
+        Wait.forLogMessage('ready for connections').withStartupTimeout(60000),
+      )
+      .withHealthCheck({
+        test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost'],
+        interval: 10000,
+        timeout: 5000,
+        retries: 3,
+      })
       .start();
 
     const databaseUrl = this.getDatabaseUrl();
@@ -219,7 +227,7 @@ export class TestContainersManager {
     const host = this.container.getHost();
     const port = this.container.getMappedPort(3306);
 
-    return `mysql://testuser:testpassword@${host}:${port}/testdb`;
+    return `mysql://solar_test_user:test_password@${host}:${port}/solar_test_db`;
   }
 
   public isContainerRunning(): boolean {
