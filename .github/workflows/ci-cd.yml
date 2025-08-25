@@ -218,9 +218,13 @@ jobs:
         run: |
           scp docker-compose.yml ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp Dockerfile ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+          scp package.json ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+          scp package-lock.json ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+          scp .dockerignore ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/ || echo ".dockerignore not found, skipping"
           scp production.env.template ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp -r nginx ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp -r scripts ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+          scp -r src ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
 
       - name: Setup SSL and Docker Authentication
         run: |
@@ -303,6 +307,13 @@ jobs:
             ls -la .env
             echo "First few lines of .env:"
             head -5 .env
+            
+            # Check build context files
+            echo "=== Build Context Check ==="
+            echo "Files in deployment directory:"
+            ls -la
+            echo "Source files:"
+            ls -la src/ || echo "src/ directory not found"
             
             # Pull latest images (with fallback to build)
             echo "Pulling latest images..."
