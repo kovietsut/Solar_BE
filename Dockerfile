@@ -4,7 +4,8 @@ FROM node:24-alpine AS base
 # Install production dependencies
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+RUN apk update --no-cache && apk add --no-cache libc6-compat || \
+    (sleep 5 && apk update --no-cache && apk add --no-cache libc6-compat)
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -19,7 +20,8 @@ RUN npm config set fetch-retries 5 && \
 
 # Install all dependencies (including dev) for building
 FROM base AS builder-deps
-RUN apk add --no-cache libc6-compat
+RUN apk update --no-cache && apk add --no-cache libc6-compat || \
+    (sleep 5 && apk update --no-cache && apk add --no-cache libc6-compat)
 WORKDIR /app
 COPY package.json package-lock.json* ./
 # Configure npm with retry settings and install with retries
