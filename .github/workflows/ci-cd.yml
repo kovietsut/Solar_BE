@@ -338,17 +338,14 @@ jobs:
             # Try to configure Docker to prefer IPv4 and add registry mirrors
             echo "Configuring Docker for IPv4 preference and registry mirrors..."
             sudo mkdir -p /etc/docker
-            cat << 'DOCKER_CONFIG' | sudo tee /etc/docker/daemon.json
-            {
+            echo '{
               "ip6tables": false,
               "ipv6": false,
-              "registry-mirrors": [
-                "https://mirror.gcr.io"
-              ],
+              "registry-mirrors": ["https://mirror.gcr.io"],
               "insecure-registries": [],
               "dns": ["8.8.8.8", "8.8.4.4"]
-            }
-            DOCKER_CONFIG
+            }' | sudo tee /etc/docker/daemon.json > /dev/null
+            echo "Docker daemon.json created successfully"
             sudo systemctl restart docker || echo "Failed to restart Docker daemon"
             sleep 10
             
