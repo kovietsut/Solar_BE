@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   # MySQL Database
@@ -30,7 +30,7 @@ services:
 
   # NestJS Application
   app:
-    # Use pre-built image for production, build locally for development
+    # Use pre-built image for production, build locally if not available
     image: ${DOCKER_REGISTRY:-}${DOCKER_IMAGE_NAME:-solar-api}:${DOCKER_TAG:-latest}
     build:
       context: .

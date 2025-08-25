@@ -217,6 +217,7 @@ jobs:
       - name: Copy deployment files to VPS
         run: |
           scp docker-compose.yml ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
+          scp Dockerfile ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp production.env.template ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp -r nginx ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp -r scripts ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
@@ -281,6 +282,7 @@ jobs:
             DOCKER_REGISTRY=${{ env.REGISTRY }}/
             DOCKER_IMAGE_NAME=${{ env.IMAGE_NAME }}
             DOCKER_TAG=${{ github.sha }}
+            ENCRYPTION_KEY=production_encryption_key_32_chars
             COMPOSE_PROJECT_NAME=solar
             ENVIRONMENT_SUFFIX=_prod
             RESTART_POLICY=always
@@ -292,17 +294,19 @@ jobs:
             
             # Debug environment variables
             echo "=== Environment Variables Check ==="
+            source .env
             echo "DOCKER_REGISTRY: ${DOCKER_REGISTRY}"
             echo "DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME}"
             echo "DOCKER_TAG: ${DOCKER_TAG}"
+            echo "Full image name will be: ${DOCKER_REGISTRY}${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
             echo "Checking if .env file was created:"
             ls -la .env
             echo "First few lines of .env:"
             head -5 .env
             
-            # Pull latest images
+            # Pull latest images (with fallback to build)
             echo "Pulling latest images..."
-            docker-compose pull
+            docker-compose pull || echo "Pull failed, will build locally if needed"
             
             # Stop existing services
             echo "Stopping existing services..."
