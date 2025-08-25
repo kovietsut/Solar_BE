@@ -221,12 +221,42 @@ jobs:
           scp -r nginx ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
           scp -r scripts ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}/
 
+      - name: Setup SSL and Docker Authentication
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            cd ${{ secrets.DEPLOY_PATH }}
+            
+            # Login to GitHub Container Registry
+            echo "Logging into GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Create SSL directory
+            echo "Setting up SSL certificates..."
+            mkdir -p nginx/ssl
+            
+            # Generate self-signed SSL certificate (for development/testing)
+            # In production, replace with real certificates from Let's Encrypt or your CA
+            if [ ! -f nginx/ssl/cert.pem ] || [ ! -f nginx/ssl/key.pem ]; then
+              echo "Generating self-signed SSL certificate..."
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout nginx/ssl/key.pem \
+                -out nginx/ssl/cert.pem \
+                -subj "/C=US/ST=State/L=City/O=Organization/CN=${{ secrets.VPS_HOST }}"
+              chmod 600 nginx/ssl/key.pem
+              chmod 644 nginx/ssl/cert.pem
+              echo "SSL certificate generated successfully"
+            else
+              echo "SSL certificates already exist"
+            fi
+          EOF
+
       - name: Deploy to VPS
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             cd ${{ secrets.DEPLOY_PATH }}
             
             # Create .env file from secrets
+            echo "Creating .env file..."
             cat > .env << 'ENVEOF'
             DATABASE_URL=mysql://${{ secrets.MYSQL_USER }}:${{ secrets.MYSQL_PASSWORD }}@mysql:3306/${{ secrets.MYSQL_DATABASE }}
             MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
@@ -250,14 +280,39 @@ jobs:
             HTTPS_PORT=443
           ENVEOF
             
+            # Debug environment variables
+            echo "=== Environment Variables Check ==="
+            echo "DOCKER_REGISTRY: ${DOCKER_REGISTRY}"
+            echo "DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME}"
+            echo "DOCKER_TAG: ${DOCKER_TAG}"
+            echo "Checking if .env file was created:"
+            ls -la .env
+            echo "First few lines of .env:"
+            head -5 .env
+            
             # Pull latest images
+            echo "Pulling latest images..."
             docker-compose pull
             
             # Stop existing services
+            echo "Stopping existing services..."
             docker-compose down
             
             # Start services with new image
+            echo "Starting services..."
             docker-compose up -d
+            
+            # Wait for services to start
+            echo "Waiting for services to start..."
+            sleep 10
+            
+            # Check what's running
+            echo "=== Services Status After Start ==="
+            docker-compose ps
+            
+            # Check logs if services failed
+            echo "=== Docker Compose Logs ==="
+            docker-compose logs --tail=30
             
             # Run database migrations
             docker-compose exec -T app npm run db:migrate
