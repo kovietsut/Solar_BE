@@ -226,6 +226,16 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             cd ${{ secrets.DEPLOY_PATH }}
             
+            # Stop system nginx if running (to avoid port conflicts)
+            echo "Checking for system nginx conflicts..."
+            if sudo systemctl is-active nginx >/dev/null 2>&1; then
+              echo "System nginx is running, stopping it to avoid port conflicts..."
+              sudo systemctl stop nginx
+              sudo systemctl disable nginx
+            else
+              echo "No system nginx conflict detected"
+            fi
+            
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -329,8 +339,29 @@ jobs:
           sleep 30
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             cd ${{ secrets.DEPLOY_PATH }}
+            
+            echo "=== Final Container Status ==="
             docker-compose ps
-            docker-compose logs --tail=50 app
+            
+            echo "=== Port Usage Check ==="
+            sudo netstat -tulpn | grep :80 || echo "Port 80 not in use"
+            sudo netstat -tulpn | grep :443 || echo "Port 443 not in use"
+            sudo netstat -tulpn | grep :3306 || echo "Port 3306 not in use"
+            
+            echo "=== System Services Check ==="
+            sudo systemctl status nginx --no-pager || echo "System nginx not running"
+            sudo systemctl status apache2 --no-pager || echo "Apache not running"
+            
+            echo "=== Docker Compose Logs (All Services) ==="
+            docker-compose logs --tail=30
+            
+            echo "=== Docker Images Available ==="
+            docker images | grep -E "(solar|mysql|nginx)" || echo "No relevant images found"
+            
+            echo "=== Environment Variables ==="
+            echo "DOCKER_REGISTRY: ${DOCKER_REGISTRY}"
+            echo "DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME}"
+            echo "DOCKER_TAG: ${DOCKER_TAG}"
           EOF
 
       - name: Health check
