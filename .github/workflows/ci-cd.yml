@@ -322,7 +322,21 @@ jobs:
             
             # Check logs if services failed
             echo "=== Docker Compose Logs ==="
-            docker-compose logs --tail=30
+            docker-compose logs --tail=50 || echo "No logs available"
+            
+            # If no containers running, try to start them manually with verbose output
+            if [ $(docker-compose ps -q | wc -l) -eq 0 ]; then
+              echo "=== No containers running, attempting manual start with verbose output ==="
+              docker-compose up --no-start
+              echo "=== Trying to start services one by one ==="
+              docker-compose start mysql && echo "MySQL started" || echo "MySQL failed to start"
+              sleep 5
+              docker-compose start app && echo "App started" || echo "App failed to start"  
+              sleep 5
+              docker-compose start nginx && echo "Nginx started" || echo "Nginx failed to start"
+              echo "=== Final status after manual start ==="
+              docker-compose ps
+            fi
             
             # Run database migrations
             docker-compose exec -T app npm run db:migrate
@@ -362,6 +376,16 @@ jobs:
             echo "DOCKER_REGISTRY: ${DOCKER_REGISTRY}"
             echo "DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME}"
             echo "DOCKER_TAG: ${DOCKER_TAG}"
+            
+            echo "=== Docker Compose Configuration Check ==="
+            docker-compose config --quiet && echo "Docker Compose config is valid" || echo "Docker Compose config has errors"
+            
+            echo "=== .env File Contents ==="
+            head -10 .env || echo ".env file not found"
+            
+            echo "=== Docker System Info ==="
+            docker system df
+            docker version --format '{{.Server.Version}}' || echo "Docker daemon not running"
           EOF
 
       - name: Health check
