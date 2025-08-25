@@ -165,10 +165,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image exists
+        run: |
+          echo "Scanning image: ${{ needs.build.outputs.image }}"
+          docker manifest inspect ${{ needs.build.outputs.image }}
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ needs.build.outputs.image }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           exit-code: '0'
@@ -295,9 +307,9 @@ jobs:
         if: always()
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
-          status: ${{ job.status }}
+          status: ${{ needs.deploy.result }}
           title: 'Deployment Status'
-          description: 'Solar BE deployment to production'
-          color: 0x0000ff
+          description: ${{ needs.deploy.result == 'success' && 'Solar BE successfully deployed to production! 🚀' || needs.deploy.result == 'failure' && 'Solar BE deployment to production failed! ❌' || 'Solar BE deployment status unknown ⚠️' }}
+          color: ${{ needs.deploy.result == 'success' && '0x00ff00' || needs.deploy.result == 'failure' && '0xff0000' || '0xffff00' }}
           username: 'GitHub Actions'
           avatar_url: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'
