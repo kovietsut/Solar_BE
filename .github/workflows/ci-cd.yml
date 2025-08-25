@@ -20,10 +20,10 @@ jobs:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
-          MYSQL_DATABASE: ${{ secrets.DB_NAME }}
-          MYSQL_USER: ${{ secrets.DB_USER }}
-          MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MYSQL_ROOT_PASSWORD: test_password
+          MYSQL_DATABASE: solar_test_db
+          MYSQL_USER: solar_test_user
+          MYSQL_PASSWORD: test_password
         ports:
           - 3306:3306
         options: >-
@@ -51,7 +51,7 @@ jobs:
       - name: Push database schema
         run: npm run db:push
         env:
-          DATABASE_URL: mysql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:3306/${{ secrets.TEST_DB_NAME }}
+          DATABASE_URL: mysql://solar_test_user:test_password@localhost:3306/solar_test_db
 
       - name: Run linting
         run: npm run lint
@@ -61,41 +61,37 @@ jobs:
         env:
           DATABASE_URL: mysql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:3306/${{ secrets.TEST_DB_NAME }}
           JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-          JWT_EXPIRES_IN: ${{ secrets.TEST_JWT_EXPIRES_IN }}
           JWT_REFRESH_SECRET: ${{ secrets.TEST_JWT_REFRESH_SECRET }}
-          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY }}
+          ENCRYPTION_KEY: test_encryption_key
           NODE_ENV: test
 
       - name: Run integration tests
         run: npm run test:integration
         env:
-          DATABASE_URL: mysql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:3306/${{ secrets.TEST_DB_NAME }}
-          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-          JWT_EXPIRES_IN: ${{ secrets.TEST_JWT_EXPIRES_IN }}
-          JWT_REFRESH_SECRET: ${{ secrets.TEST_JWT_REFRESH_SECRET }}
-          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY }}
+          DATABASE_URL: mysql://solar_test_user:test_password@localhost:3306/solar_test_db
+          JWT_SECRET: test_jwt_secret
+          JWT_REFRESH_SECRET: test_refresh_secret
+          ENCRYPTION_KEY: test_encryption_key
           NODE_ENV: test
           CI: true
 
       - name: Run e2e tests
         run: npm run test:e2e
         env:
-          DATABASE_URL: mysql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:3306/${{ secrets.TEST_DB_NAME }}
-          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-          JWT_EXPIRES_IN: ${{ secrets.TEST_JWT_EXPIRES_IN }}
-          JWT_REFRESH_SECRET: ${{ secrets.TEST_JWT_REFRESH_SECRET }}
-          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY }}
+          DATABASE_URL: mysql://solar_test_user:test_password@localhost:3306/solar_test_db
+          JWT_SECRET: test_jwt_secret
+          JWT_REFRESH_SECRET: test_refresh_secret
+          ENCRYPTION_KEY: test_encryption_key
           NODE_ENV: test
           CI: true
 
       - name: Generate test coverage
         run: npm run test:cov
         env:
-          DATABASE_URL: mysql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:3306/${{ secrets.TEST_DB_NAME }}
-          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-          JWT_EXPIRES_IN: ${{ secrets.TEST_JWT_EXPIRES_IN }}
-          JWT_REFRESH_SECRET: ${{ secrets.TEST_JWT_REFRESH_SECRET }}
-          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY }}
+          DATABASE_URL: mysql://solar_test_user:test_password@localhost:3306/solar_test_db
+          JWT_SECRET: test_jwt_secret
+          JWT_REFRESH_SECRET: test_refresh_secret
+          ENCRYPTION_KEY: test_encryption_key
           NODE_ENV: test
           CI: true
 
@@ -232,7 +228,6 @@ jobs:
             JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}
             JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
             JWT_REFRESH_EXPIRES_IN=${{ secrets.JWT_REFRESH_EXPIRES_IN }}
-            ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
             NODE_ENV=production
             DOCKER_REGISTRY=${{ env.REGISTRY }}/
             DOCKER_IMAGE_NAME=${{ env.IMAGE_NAME }}
