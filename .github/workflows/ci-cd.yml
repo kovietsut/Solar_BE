@@ -224,6 +224,15 @@ jobs:
           echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
+          # If key is encrypted, set up ssh-agent with passphrase
+          if ssh-keygen -y -f ~/.ssh/id_rsa -P "" 2>/dev/null; then
+            echo "Private key is not encrypted"
+          else
+            echo "Private key is encrypted, setting up ssh-agent..."
+            eval $(ssh-agent -s)
+            echo "${{ secrets.VPS_SSH_PASSPHRASE }}" | ssh-add ~/.ssh/id_rsa
+          fi
+
           # Verify key format
           echo "Verifying SSH key..."
           if ssh-keygen -l -f ~/.ssh/id_rsa; then
@@ -261,7 +270,12 @@ jobs:
           ssh-keygen -l -f ~/.ssh/id_rsa
           echo ""
           echo "Public Key (for VPS setup):"
-          ssh-keygen -y -f ~/.ssh/id_rsa
+          if ssh-keygen -y -f ~/.ssh/id_rsa -P "" 2>/dev/null; then
+            ssh-keygen -y -f ~/.ssh/id_rsa
+          else
+            echo "Key is encrypted, using ssh-agent..."
+            ssh-add -L 2>/dev/null || echo "No keys in ssh-agent"
+          fi
           echo ""
           echo "Testing SSH connection with verbose output:"
           ssh -o ConnectTimeout=10 -o BatchMode=yes -v ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'Connection successful'" || echo "SSH connection failed"
