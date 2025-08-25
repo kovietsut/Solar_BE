@@ -263,8 +263,8 @@ JWT_REFRESH_EXPIRES_IN=7d
 # Deployment Configuration
 DEPLOY_PATH=/opt/solar-api
 
-# Optional: Slack Notifications
-SLACK_WEBHOOK=your_slack_webhook_url
+# Optional: Discord Notifications
+DISCORD_WEBHOOK=your_discord_webhook_url
 ```
 
 ### VPS Server Setup

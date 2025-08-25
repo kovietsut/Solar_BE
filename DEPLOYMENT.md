@@ -120,7 +120,7 @@ JWT_REFRESH_EXPIRES_IN=7d
 #### Optional Notifications
 
 ```
-SLACK_WEBHOOK=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+DISCORD_WEBHOOK=https://discord.com/api/webhooks/YOUR/DISCORD/WEBHOOK
 ```
 
 ### 4. SSH Key Setup
