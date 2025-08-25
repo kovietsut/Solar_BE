@@ -30,6 +30,14 @@ export class TestContainersManager {
       };
     }
 
+    // Check if running in CI with existing database service
+    if (process.env.CI && process.env.DATABASE_URL) {
+      console.log(
+        'CI environment detected, using provided database service...',
+      );
+      return this.setupCIDatabase();
+    }
+
     console.log('Starting MySQL test container...');
 
     this.container = await new GenericContainer('mysql:8.0')
@@ -68,7 +76,7 @@ export class TestContainersManager {
         await testPrisma.$disconnect();
         console.log('MySQL connection test successful!');
         break;
-      } catch (error) {
+      } catch {
         retries++;
         console.log(
           `Connection test failed (attempt ${retries}/${maxRetries}), waiting 2 seconds...`,
@@ -215,6 +223,140 @@ export class TestContainersManager {
 
   public isContainerRunning(): boolean {
     return this.container !== null && this.prismaClient !== null;
+  }
+
+  /**
+   * Setup database connection for CI environment using GitHub Actions service container
+   */
+  private async setupCIDatabase(): Promise<TestContainerConfig> {
+    const databaseUrl = process.env.DATABASE_URL!;
+
+    console.log('Setting up CI database connection...');
+
+    // Create Prisma client with the CI database
+    this.prismaClient = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
+    });
+
+    // Test connection and ensure database is ready
+    let retries = 0;
+    const maxRetries = 10;
+
+    while (retries < maxRetries) {
+      try {
+        await this.prismaClient.$queryRaw`SELECT 1`;
+        console.log('CI database connection test successful!');
+        break;
+      } catch {
+        retries++;
+        console.log(
+          `CI database connection test failed (attempt ${retries}/${maxRetries}), waiting 2 seconds...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+
+    if (retries >= maxRetries) {
+      throw new Error(
+        'Failed to establish CI database connection after multiple attempts',
+      );
+    }
+
+    // Push schema to the CI database using Prisma client
+    console.log('Pushing schema to CI database...');
+
+    try {
+      // Execute raw SQL to create tables based on our schema
+      await this.prismaClient.$executeRaw`
+        CREATE TABLE IF NOT EXISTS roles (
+          id VARCHAR(191) NOT NULL,
+          createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updatedAt DATETIME(3) NULL,
+          createdBy VARCHAR(191) NULL,
+          updatedBy VARCHAR(191) NULL,
+          isDeleted BOOLEAN NOT NULL DEFAULT false,
+          name VARCHAR(191) NOT NULL,
+          PRIMARY KEY (id)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `;
+
+      await this.prismaClient.$executeRaw`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(191) NOT NULL,
+          createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updatedAt DATETIME(3) NULL,
+          createdBy VARCHAR(191) NULL,
+          updatedBy VARCHAR(191) NULL,
+          isDeleted BOOLEAN NOT NULL DEFAULT false,
+          roleId VARCHAR(191) NOT NULL,
+          phoneNumber VARCHAR(191) NOT NULL,
+          passwordHash VARCHAR(191) NOT NULL,
+          securityStamp VARCHAR(191) NOT NULL,
+          email VARCHAR(191) NOT NULL,
+          name VARCHAR(191) NOT NULL,
+          avatarPath VARCHAR(191) NULL,
+          address VARCHAR(191) NULL,
+          PRIMARY KEY (id),
+          UNIQUE KEY users_email_key (email),
+          FOREIGN KEY (roleId) REFERENCES roles(id)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `;
+
+      await this.prismaClient.$executeRaw`
+        CREATE TABLE IF NOT EXISTS auth_methods (
+          id VARCHAR(191) NOT NULL,
+          createdAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updatedAt DATETIME(3) NULL,
+          createdBy VARCHAR(191) NULL,
+          updatedBy VARCHAR(191) NULL,
+          isDeleted BOOLEAN NOT NULL DEFAULT false,
+          userId VARCHAR(191) NOT NULL,
+          authType VARCHAR(191) NOT NULL,
+          authId VARCHAR(191) NOT NULL,
+          accessToken TEXT NULL,
+          refreshToken TEXT NULL,
+          jwtId VARCHAR(191) NULL,
+          isRevoked BOOLEAN NOT NULL DEFAULT false,
+          accessTokenExpiration DATETIME(3) NULL,
+          refreshTokenExpiration DATETIME(3) NULL,
+          deviceId VARCHAR(191) NOT NULL,
+          deviceType VARCHAR(191) NOT NULL,
+          platform VARCHAR(191) NOT NULL,
+          deviceName VARCHAR(191) NULL,
+          PRIMARY KEY (id),
+          FOREIGN KEY (userId) REFERENCES users(id),
+          INDEX auth_methods_userId_idx (userId),
+          INDEX auth_methods_deviceId_idx (deviceId)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `;
+
+      console.log('CI database schema creation completed successfully!');
+    } catch (error) {
+      console.error('Error creating CI database schema:', error);
+      throw error;
+    }
+
+    // Create a mock container object for CI environment
+    const mockContainer = {
+      getHost: () => 'localhost',
+      getMappedPort: () => 3306,
+      stop: async () => {
+        console.log('Mock container stop called in CI environment');
+      },
+    } as unknown as StartedTestContainer;
+
+    // Set mock container to prevent issues with cleanup
+    this.container = mockContainer;
+
+    return {
+      container: mockContainer,
+      databaseUrl,
+      prismaClient: this.prismaClient,
+    };
   }
 }
 

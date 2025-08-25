@@ -66,6 +66,7 @@ jobs:
           JWT_SECRET: test_jwt_secret
           JWT_REFRESH_SECRET: test_refresh_secret
           NODE_ENV: test
+          CI: true
 
       - name: Run e2e tests
         run: npm run test:e2e
@@ -74,6 +75,7 @@ jobs:
           JWT_SECRET: test_jwt_secret
           JWT_REFRESH_SECRET: test_refresh_secret
           NODE_ENV: test
+          CI: true
 
       - name: Generate test coverage
         run: npm run test:cov
@@ -82,6 +84,7 @@ jobs:
           JWT_SECRET: test_jwt_secret
           JWT_REFRESH_SECRET: test_refresh_secret
           NODE_ENV: test
+          CI: true
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3

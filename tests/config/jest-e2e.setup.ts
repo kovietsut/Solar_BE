@@ -7,6 +7,7 @@ import { RoleGuard } from '../../src/infrastructure/guards/role.guard';
 
 // Create a global variable to store the app instance
 declare global {
+  // eslint-disable-next-line no-var
   var __TEST_APP__: INestApplication | undefined;
 }
 
@@ -15,10 +16,10 @@ beforeAll(async () => {
   console.log('Starting test container for E2E tests...');
   try {
     const containerConfig = await testContainersManager.startContainer();
-    
+
     // Set the DATABASE_URL environment variable to point to the test container
     process.env.DATABASE_URL = containerConfig.databaseUrl;
-    
+
     console.log('Test database URL set to:', containerConfig.databaseUrl);
   } catch (error) {
     console.error('Failed to start test container:', error);
@@ -35,7 +36,7 @@ beforeAll(async () => {
     .compile();
 
   const app = moduleRef.createNestApplication();
-  
+
   // Apply validation pipe to match the main application
   app.useGlobalPipes(
     new ValidationPipe({
@@ -44,7 +45,7 @@ beforeAll(async () => {
       forbidNonWhitelisted: true,
     }),
   );
-  
+
   await app.init();
 
   // Store the app instance globally so it can be accessed by test files
@@ -71,7 +72,9 @@ afterAll(async () => {
 // Export a function to get the app instance
 export function getTestApp(): INestApplication {
   if (!global.__TEST_APP__) {
-    throw new Error('Test application not initialized. Make sure to run tests with --runInBand or ensure proper setup.');
+    throw new Error(
+      'Test application not initialized. Make sure to run tests with --runInBand or ensure proper setup.',
+    );
   }
   return global.__TEST_APP__;
 }

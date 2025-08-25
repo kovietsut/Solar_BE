@@ -6,7 +6,7 @@ import { testContainersManager } from './testcontainers.config';
  */
 export default async function globalTeardown(): Promise<void> {
   console.log('Global test teardown: Cleaning up test resources...');
-  
+
   try {
     // Ensure all test containers are stopped
     if (testContainersManager.isContainerRunning()) {
@@ -17,6 +17,6 @@ export default async function globalTeardown(): Promise<void> {
   } catch (error) {
     console.error('Error during global teardown:', error);
   }
-  
+
   console.log('Global test teardown completed');
 }

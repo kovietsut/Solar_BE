@@ -4,7 +4,7 @@ import { PrismaService } from '../../../src/infrastructure/repositories/prisma.s
 import { CreateUserDto } from '../../../src/infrastructure/dtos/user/create-user.dto';
 import { UpdateUserDto } from '../../../src/infrastructure/dtos/user/update-user.dto';
 import { GetListQueryDto } from '../../../src/infrastructure/dtos/common/get-list-query.dto';
-import { User } from '../../../src/domain/entities/user.entity';
+
 import { Role } from '../../../src/domain/entities/role.entity';
 import { cleanupTestDatabase } from '../../config/test-database.config';
 

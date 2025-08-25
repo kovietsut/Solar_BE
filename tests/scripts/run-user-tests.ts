@@ -15,7 +15,7 @@ try {
     stdio: 'inherit',
   });
   console.log('✅ Unit tests completed successfully\n');
-} catch (error) {
+} catch {
   console.error('❌ Unit tests failed\n');
   process.exit(1);
 }
@@ -28,7 +28,7 @@ try {
     stdio: 'inherit',
   });
   console.log('✅ Integration tests completed successfully\n');
-} catch (error) {
+} catch {
   console.error('❌ Integration tests failed\n');
   process.exit(1);
 }
@@ -41,7 +41,7 @@ try {
     stdio: 'inherit',
   });
   console.log('✅ E2E tests completed successfully\n');
-} catch (error) {
+} catch {
   console.error('❌ E2E tests failed\n');
   process.exit(1);
 }

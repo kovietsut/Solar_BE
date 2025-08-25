@@ -3,7 +3,7 @@ import { RoleController } from '../../../src/api/controllers/role.controller';
 import { RoleService } from '../../../src/infrastructure/services/role.service';
 import { CreateRoleDto } from '../../../src/infrastructure/dtos/role/create-role.dto';
 import { UpdateRoleDto } from '../../../src/infrastructure/dtos/role/update-role.dto';
-import { GetListQueryDto } from '../../../src/infrastructure/dtos/common/get-list-query.dto';
+
 import { PrismaRole } from '../../../src/infrastructure/types/prisma-role.type';
 import { ROLE_SERVICE } from '../../../src/infrastructure/constants/injection-tokens';
 import { JsonUtil } from '../../../src/shared/utils/json.util';

@@ -3,7 +3,7 @@ import * as request from 'supertest';
 import { PrismaService } from '../../../src/infrastructure/repositories/prisma.service';
 import { CreateRoleDto } from '../../../src/infrastructure/dtos/role/create-role.dto';
 import { UpdateRoleDto } from '../../../src/infrastructure/dtos/role/update-role.dto';
-import { ROLES } from '../../../src/shared/constants/roles.constants';
+
 import { getTestApp } from '../../config/jest-e2e.setup';
 
 /**

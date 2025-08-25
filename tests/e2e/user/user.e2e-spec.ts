@@ -1,7 +1,6 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { Role } from '../../../src/domain/entities/role.entity';
-import { User } from '../../../src/domain/entities/user.entity';
 import { CreateUserDto } from '../../../src/infrastructure/dtos/user/create-user.dto';
 import { UpdateUserDto } from '../../../src/infrastructure/dtos/user/update-user.dto';
 import { PrismaService } from '../../../src/infrastructure/repositories/prisma.service';

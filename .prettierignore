@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Logs
+*.log
+
+# Environment files
+.env*
+!.env.template
+!.env.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Prisma generated files
+prisma/generated/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+
+# Documentation that should maintain specific formatting
+CHANGELOG.md
+LICENSE*
+
+# Package files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
