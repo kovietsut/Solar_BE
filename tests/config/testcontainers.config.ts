@@ -38,6 +38,7 @@ export class TestContainersManager {
       return this.setupCIDatabase();
     }
 
+    // Check if Docker is available by trying to start container
     console.log('Starting MySQL test container...');
 
     this.container = await new GenericContainer('mysql:8.0')

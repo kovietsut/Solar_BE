@@ -7,8 +7,9 @@ import { RoleGuard } from '../../src/infrastructure/guards/role.guard';
 
 // Create a global variable to store the app instance
 declare global {
-  // eslint-disable-next-line no-var
-  var __TEST_APP__: INestApplication | undefined;
+  interface globalThis {
+    __TEST_APP__?: INestApplication;
+  }
 }
 
 beforeAll(async () => {
@@ -23,17 +24,62 @@ beforeAll(async () => {
     console.log('Test database URL set to:', containerConfig.databaseUrl);
   } catch (error) {
     console.error('Failed to start test container:', error);
-    throw error;
+    console.log(
+      'Docker not available - attempting to use local database for testing...',
+    );
+
+    // Try to use local test database configuration
+    const testDbConfig = {
+      host: process.env.DATABASE_TEST_HOST,
+      port: process.env.DATABASE_TEST_PORT,
+      username: process.env.DATABASE_TEST_USERNAME,
+      password: process.env.DATABASE_TEST_PASSWORD,
+      database: process.env.DATABASE_TEST_NAME,
+    };
+
+    // Check if all required test database fields are provided
+    if (
+      testDbConfig.host &&
+      testDbConfig.port &&
+      testDbConfig.username &&
+      testDbConfig.password &&
+      testDbConfig.database
+    ) {
+      const testDatabaseUrl = `mysql://${testDbConfig.username}:${testDbConfig.password}@${testDbConfig.host}:${testDbConfig.port}/${testDbConfig.database}?ssl=false&authPlugin=mysql_native_password&allowPublicKeyRetrieval=true`;
+      console.log('Using local test database configuration');
+      console.log(
+        `Test database: ${testDbConfig.host}:${testDbConfig.port}/${testDbConfig.database}`,
+      );
+      process.env.DATABASE_URL = testDatabaseUrl;
+    } else {
+      console.log(
+        'No test database configuration found. Please set up test database environment variables or install Docker.',
+      );
+      console.log(
+        'Required environment variables:\n' +
+          '  - DATABASE_TEST_HOST\n' +
+          '  - DATABASE_TEST_PORT\n' +
+          '  - DATABASE_TEST_USERNAME\n' +
+          '  - DATABASE_TEST_PASSWORD\n' +
+          '  - DATABASE_TEST_NAME',
+      );
+      throw new Error(
+        'No test database available. Please either:\n' +
+          '1. Install Docker for testcontainers, or\n' +
+          '2. Set the DATABASE_TEST_* environment variables for your test database',
+      );
+    }
   }
 
-  const moduleRef = await Test.createTestingModule({
+  const moduleBuilder = Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideGuard(JwtAuthGuard)
     .useValue({ canActivate: () => true })
     .overrideGuard(RoleGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+    .useValue({ canActivate: () => true });
+
+  const moduleRef = await moduleBuilder.compile();
 
   const app = moduleRef.createNestApplication();
 
@@ -49,15 +95,15 @@ beforeAll(async () => {
   await app.init();
 
   // Store the app instance globally so it can be accessed by test files
-  global.__TEST_APP__ = app;
+  globalThis.__TEST_APP__ = app;
 
   console.log('E2E test application started successfully');
 }, 60000); // Increased timeout to 60 seconds
 
 afterAll(async () => {
-  if (global.__TEST_APP__) {
-    await global.__TEST_APP__.close();
-    global.__TEST_APP__ = undefined;
+  if (globalThis.__TEST_APP__) {
+    await globalThis.__TEST_APP__.close();
+    globalThis.__TEST_APP__ = undefined;
   }
 
   // Stop the test container after all tests
@@ -71,10 +117,10 @@ afterAll(async () => {
 
 // Export a function to get the app instance
 export function getTestApp(): INestApplication {
-  if (!global.__TEST_APP__) {
+  if (!globalThis.__TEST_APP__) {
     throw new Error(
       'Test application not initialized. Make sure to run tests with --runInBand or ensure proper setup.',
     );
   }
-  return global.__TEST_APP__;
+  return globalThis.__TEST_APP__;
 }
