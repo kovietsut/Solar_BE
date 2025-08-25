@@ -83,6 +83,8 @@ export class PermissionGuard implements CanActivate {
 
     // Add your action-based permission logic here
     // Example: check if user has specific permissions in their role
+    // For demonstration, we'll check if the required actions array is not empty
+    console.log(`Checking actions: ${requiredActions.join(', ')}`);
     return false;
   }
 
@@ -96,6 +98,8 @@ export class PermissionGuard implements CanActivate {
 
     // Add your resource-based permission logic here
     // Example: check if user has access to specific resources
+    // For demonstration, we'll check if the required resources array is not empty
+    console.log(`Checking resources: ${requiredResources.join(', ')}`);
     return false;
   }
 }

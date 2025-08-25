@@ -17,7 +17,7 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { RoleService } from 'src/infrastructure/services/role.service';
+
 import { CreateRoleDto } from '../../infrastructure/dtos/role/create-role.dto';
 import { UpdateRoleDto } from '../../infrastructure/dtos/role/update-role.dto';
 import { Role } from 'src/domain/entities/role.entity';

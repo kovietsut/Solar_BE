@@ -22,6 +22,9 @@ export class UserRepository
     // Combine password with securityStamp before hashing
     const combinedPassword = `${createUserDto.password}${securityStamp}`;
     const hashedPassword = await bcrypt.hash(combinedPassword, 10);
+
+    // Extract password and create user data without it
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userData } = createUserDto;
 
     return this.prisma.user.create({
