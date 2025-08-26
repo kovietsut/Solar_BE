@@ -44,6 +44,14 @@ RUN npm run db:generate
 # Build the application
 RUN npm run build
 
+# Debug: Check if dist folder was created
+RUN echo "=== Build Output Debug ===" && \
+    ls -la /app/ && \
+    echo "=== Dist folder contents ===" && \
+    ls -la /app/dist/ && \
+    echo "=== Main file check ===" && \
+    ls -la /app/dist/main.js || echo "main.js not found"
+
 # Production image, copy all the files and run nest
 FROM base AS runner
 WORKDIR /app
@@ -56,6 +64,14 @@ RUN adduser --system --uid 1001 nestjs
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
+
+# Debug: Check what was copied
+RUN echo "=== Runner Stage Debug ===" && \
+    ls -la /app/ && \
+    echo "=== Dist folder in runner ===" && \
+    ls -la /app/dist/ && \
+    echo "=== Main file in runner ===" && \
+    ls -la /app/dist/main.js || echo "main.js not found in runner"
 
 # Copy Prisma schema and migrations for database operations
 COPY --from=builder /app/src/domain/migrations ./src/domain/migrations
