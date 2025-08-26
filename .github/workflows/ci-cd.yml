@@ -376,6 +376,8 @@ jobs:
             
             # Debug environment variables
             echo "Environment variables configured successfully"
+            echo "Checking DATABASE_URL in .env:"
+            grep "DATABASE_URL" .env || echo "DATABASE_URL not found in .env!"
             
             # Pull latest images from registry
             echo "Pulling latest images from registry..."
@@ -452,8 +454,11 @@ jobs:
             echo "=== Application Logs (last 50 lines) ==="
             docker-compose logs --tail=50 app || echo "No app logs available"
             echo ""
+            echo "=== App Container Environment Check ==="
+            docker-compose exec -T app env | grep -E "(DATABASE_URL|NODE_ENV)" || echo "App container not running or env vars not accessible"
+            echo ""
             echo "=== MySQL Connection Test ==="
-            docker-compose exec -T mysql mysqladmin ping -h localhost && echo "MySQL is responding" || echo "MySQL connection failed"
+            docker-compose exec -T mysql mysqladmin ping -h localhost --silent && echo "MySQL is responding" || echo "MySQL connection failed"
             echo ""
             echo "=== App Container Health ==="
             docker inspect --format='{{.State.Health.Status}}' $(docker-compose ps -q app) 2>/dev/null || echo "No health status available"
