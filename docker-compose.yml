@@ -67,7 +67,6 @@ services:
       - solar_network
     volumes:
       - app_uploads:/app/uploads
-      - app_logs:/app/logs
     healthcheck:
       test: ['CMD', 'node', '-e', 'require("http").get("http://localhost:3000/health", (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on("error", () => process.exit(1))']
       interval: 30s
@@ -107,8 +106,6 @@ volumes:
   mysql_data:
     driver: local
   app_uploads:
-    driver: local
-  app_logs:
     driver: local
   nginx_logs:
     driver: local

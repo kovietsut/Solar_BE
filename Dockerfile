@@ -37,7 +37,6 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=builder-deps /app/node_modules ./node_modules
 COPY . .
-COPY ecosystem.config.js ./ecosystem.config.js
 
 # Generate Prisma client
 RUN npm run db:generate
@@ -75,14 +74,5 @@ ENV NODE_ENV=production
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Install PM2 globally
-RUN npm install -g pm2
-
-# Copy PM2 ecosystem file
-COPY --from=builder /app/ecosystem.config.js ./ecosystem.config.js
-
-# Create logs directory
-RUN mkdir -p /app/logs
-
-# Start the application with PM2
-CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+# Start the application
+CMD ["npm", "run", "start:prod"]

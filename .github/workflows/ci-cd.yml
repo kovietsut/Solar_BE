@@ -348,12 +348,10 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             cd ${{ secrets.DEPLOY_PATH }}
             
-            # Remove existing .env file and create new one from secrets
-            echo "Removing existing .env file..."
-            rm -f .env
+            # Create .env file from secrets
             echo "Creating .env file..."
             cat > .env << 'ENVEOF'
-            DATABASE_URL="mysql://${{ secrets.MYSQL_USER }}:${{ secrets.MYSQL_PASSWORD }}@mysql:3306/${{ secrets.MYSQL_DATABASE }}"
+            DATABASE_URL=mysql://${{ secrets.MYSQL_USER }}:${{ secrets.MYSQL_PASSWORD }}@mysql:3306/${{ secrets.MYSQL_DATABASE }}
             MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
             MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
             MYSQL_USER=${{ secrets.MYSQL_USER }}
@@ -378,9 +376,6 @@ jobs:
             
             # Debug environment variables
             echo "Environment variables configured successfully"
-            echo "=== .env file contents ==="
-            cat .env
-            echo "=== End of .env file ==="
             echo "Checking DATABASE_URL in .env:"
             grep "DATABASE_URL" .env || echo "DATABASE_URL not found in .env!"
             
