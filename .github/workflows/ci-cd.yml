@@ -446,13 +446,13 @@ jobs:
 
           # Wait for application to be ready
           echo "Checking health endpoint..."
-          for i in {1..5}; do
+          for i in {1..10}; do
             if curl -f "https://${{ secrets.VPS_HOST }}/health" 2>/dev/null; then
               echo "✅ Deployment successful"
               exit 0
             fi
-            echo "Waiting for application... ($i/5)"
-            sleep 10
+            echo "Waiting for application... ($i/10)"
+            sleep 15
           done
           echo "⚠️ Health check timeout"
           exit 1
