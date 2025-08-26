@@ -143,6 +143,18 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Test build without push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: test-build:latest
+          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v5
@@ -158,7 +170,20 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
           outputs: type=registry
-        continue-on-error: false
+
+      - name: Debug build failure
+        if: failure()
+        run: |
+          echo "=== Docker Build Failed ==="
+          echo "Build step failed. Checking build outputs..."
+          echo "Build ID: ${{ steps.build.outputs.digest }}"
+          echo "Build metadata: ${{ steps.build.outputs.metadata }}"
+          echo "Available images:"
+          docker images
+          echo "=== Docker System Info ==="
+          docker system df
+          echo "=== Docker Buildx Info ==="
+          docker buildx ls
 
       - name: Output image
         id: image
@@ -170,10 +195,23 @@ jobs:
           echo "Verifying image was pushed to registry..."
           IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           echo "Checking image: $IMAGE_NAME"
+          echo "Build outputs:"
+          echo "  Digest: ${{ steps.build.outputs.digest }}"
+          echo "  Metadata: ${{ steps.build.outputs.metadata }}"
+          echo "  ImageID: ${{ steps.build.outputs.imageid }}"
+
+          echo "Attempting to inspect manifest..."
           if docker manifest inspect "$IMAGE_NAME"; then
             echo "✅ Image successfully pushed to registry"
           else
             echo "❌ Failed to push image to registry"
+            echo "Debugging information:"
+            echo "Registry: ${{ env.REGISTRY }}"
+            echo "Image name: ${{ env.IMAGE_NAME }}"
+            echo "Tag: ${{ github.sha }}"
+            echo "Full image name: $IMAGE_NAME"
+            echo "Available local images:"
+            docker images
             exit 1
           fi
 
