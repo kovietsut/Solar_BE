@@ -336,7 +336,7 @@ jobs:
             NODE_ENV=production
             DOCKER_REGISTRY=${{ env.REGISTRY }}/
             DOCKER_IMAGE_NAME=${{ env.IMAGE_NAME }}
-            DOCKER_TAG=${{ github.sha }}
+            DOCKER_TAG=main
             ENCRYPTION_KEY=production_encryption_key_32_chars
             COMPOSE_PROJECT_NAME=solar
             ENVIRONMENT_SUFFIX=_prod
