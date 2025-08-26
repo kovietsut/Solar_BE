@@ -282,8 +282,10 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             cd ${{ secrets.DEPLOY_PATH }}
             
-            # Stop system nginx if running (to avoid port conflicts)
-            echo "Checking for system nginx conflicts..."
+            # Stop system services that might conflict with Docker containers
+            echo "Checking for service conflicts..."
+            
+            # Stop system nginx if running (port 80/443 conflict)
             if sudo systemctl is-active nginx >/dev/null 2>&1; then
               echo "System nginx is running, stopping it to avoid port conflicts..."
               sudo systemctl stop nginx
@@ -291,6 +293,21 @@ jobs:
             else
               echo "No system nginx conflict detected"
             fi
+            
+            # Stop system MySQL if running (port 3306 conflict)
+            if sudo systemctl is-active mysql >/dev/null 2>&1; then
+              echo "System MySQL is running, stopping it to avoid port conflicts..."
+              sudo systemctl stop mysql
+              sudo systemctl disable mysql
+            else
+              echo "No system MySQL conflict detected"
+            fi
+            
+            # Stop any other services using common ports
+            echo "Checking for other port conflicts..."
+            sudo fuser -k 80/tcp 2>/dev/null || echo "Port 80 is free"
+            sudo fuser -k 443/tcp 2>/dev/null || echo "Port 443 is free"  
+            sudo fuser -k 3306/tcp 2>/dev/null || echo "Port 3306 is free"
             
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
@@ -354,9 +371,14 @@ jobs:
             echo "Pulling latest images from registry..."
             docker-compose pull
             
-            # Stop existing services
+            # Stop existing services and clean up
             echo "Stopping existing services..."
-            docker-compose down
+            docker-compose down --remove-orphans
+            
+            # Clean up any stuck containers or networks
+            echo "Cleaning up Docker resources..."
+            docker container prune -f
+            docker network prune -f
             
             # Start services with pre-built images
             echo "Starting services with pre-built images..."
