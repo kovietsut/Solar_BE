@@ -67,19 +67,19 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
         env:
-          DATABASE_URL: mysql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:3306/${{ secrets.TEST_DB_NAME }}
-          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-          JWT_REFRESH_SECRET: ${{ secrets.TEST_JWT_REFRESH_SECRET }}
-          ENCRYPTION_KEY: test_encryption_key
+          DATABASE_URL: mysql://${{ secrets.DATABASE_TEST_USERNAME }}:${{ secrets.DATABASE_TEST_PASSWORD }}@localhost:3306/${{ secrets.DATABASE_TEST_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           NODE_ENV: test
 
       - name: Run integration tests
         run: npm run test:integration
         env:
           DATABASE_URL: mysql://solar_test_user:test_password@localhost:3306/solar_test_db
-          JWT_SECRET: test_jwt_secret
-          JWT_REFRESH_SECRET: test_refresh_secret
-          ENCRYPTION_KEY: test_encryption_key
+          JWT_SECRET: $${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           NODE_ENV: test
           CI: true
 
@@ -87,9 +87,9 @@ jobs:
         run: npm run test:e2e
         env:
           DATABASE_URL: mysql://solar_test_user:test_password@localhost:3306/solar_test_db
-          JWT_SECRET: test_jwt_secret
-          JWT_REFRESH_SECRET: test_refresh_secret
-          ENCRYPTION_KEY: test_encryption_key
+          JWT_SECRET: $${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           NODE_ENV: test
           CI: true
 
@@ -364,7 +364,7 @@ jobs:
             DOCKER_REGISTRY=${{ env.REGISTRY }}/
             DOCKER_IMAGE_NAME=${{ env.IMAGE_NAME }}
             DOCKER_TAG=main
-            ENCRYPTION_KEY=production_encryption_key_32_chars
+            ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
             COMPOSE_PROJECT_NAME=solar
             ENVIRONMENT_SUFFIX=_prod
             RESTART_POLICY=always
