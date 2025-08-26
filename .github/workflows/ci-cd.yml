@@ -303,11 +303,21 @@ jobs:
               echo "No system MySQL conflict detected"
             fi
             
-            # Stop any other services using common ports
-            echo "Checking for other port conflicts..."
+            # Check and stop any processes using our ports
+            echo "Checking for port conflicts..."
+            echo "Ports in use:"
+            sudo netstat -tulpn | grep -E ':(80|443|3000|3306) ' || echo "No conflicts on main ports"
+            
+            echo "Stopping processes on required ports..."
             sudo fuser -k 80/tcp 2>/dev/null || echo "Port 80 is free"
             sudo fuser -k 443/tcp 2>/dev/null || echo "Port 443 is free"  
+            sudo fuser -k 3000/tcp 2>/dev/null || echo "Port 3000 is free"
             sudo fuser -k 3306/tcp 2>/dev/null || echo "Port 3306 is free"
+            
+            # Wait a moment for processes to terminate
+            sleep 2
+            echo "Port status after cleanup:"
+            sudo netstat -tulpn | grep -E ':(80|443|3000|3306) ' || echo "All required ports are now free"
             
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
