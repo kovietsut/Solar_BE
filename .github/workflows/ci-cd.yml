@@ -390,13 +390,25 @@ jobs:
             docker container prune -f
             docker network prune -f
             
-            # Start services with pre-built images
-            echo "Starting services with pre-built images..."
-            docker-compose up -d
+            # Start database first
+            echo "Starting MySQL database..."
+            docker-compose up -d mysql
             
-            # Wait for services to start
-            echo "Waiting for services to start..."
-            sleep 10
+            # Wait for MySQL to be healthy
+            echo "Waiting for MySQL to be ready..."
+            timeout 60s bash -c 'until docker-compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
+            
+            # Run migrations as separate job
+            echo "Running database migrations..."
+            docker-compose up migrate
+            
+            # Start application services
+            echo "Starting application services..."
+            docker-compose up -d app nginx
+            
+            # Wait for application to be ready
+            echo "Waiting for application to start..."
+            sleep 20
             
             # Check services status
             echo "=== Services Status ==="
@@ -437,8 +449,14 @@ jobs:
             echo "=== Container Status ==="
             docker-compose ps
             echo ""
-            echo "=== Application Logs (last 20 lines) ==="
-            docker-compose logs --tail=20 app || echo "No app logs available"
+            echo "=== Application Logs (last 50 lines) ==="
+            docker-compose logs --tail=50 app || echo "No app logs available"
+            echo ""
+            echo "=== MySQL Connection Test ==="
+            docker-compose exec -T mysql mysqladmin ping -h localhost && echo "MySQL is responding" || echo "MySQL connection failed"
+            echo ""
+            echo "=== App Container Health ==="
+            docker inspect --format='{{.State.Health.Status}}' $(docker-compose ps -q app) 2>/dev/null || echo "No health status available"
             echo ""
             echo "=== Network Check ==="
             docker-compose exec -T app curl -f http://localhost:3000/health 2>/dev/null && echo "Internal health check: OK" || echo "Internal health check: FAILED"
@@ -446,13 +464,13 @@ jobs:
 
           # Wait for application to be ready
           echo "Checking health endpoint..."
-          for i in {1..10}; do
+          for i in {1..6}; do
             if curl -f "https://${{ secrets.VPS_HOST }}/health" 2>/dev/null; then
               echo "✅ Deployment successful"
               exit 0
             fi
-            echo "Waiting for application... ($i/10)"
-            sleep 15
+            echo "Waiting for application... ($i/6)"
+            sleep 10
           done
           echo "⚠️ Health check timeout"
           exit 1
