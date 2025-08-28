@@ -294,24 +294,30 @@ jobs:
               echo "No system nginx conflict detected"
             fi
             
-            # No need to stop system MySQL since we're using external database
-            echo "Using external MySQL database, no local MySQL conflicts to resolve"
+            # Stop system MySQL if running (port 3306 conflict)
+            if sudo systemctl is-active mysql >/dev/null 2>&1; then
+              echo "System MySQL is running, stopping it to avoid port conflicts..."
+              sudo systemctl stop mysql
+              sudo systemctl disable mysql
+            else
+              echo "No system MySQL conflict detected"
+            fi
             
             # Check and stop any processes using our ports
             echo "Checking for port conflicts..."
             echo "Ports in use:"
-            sudo netstat -tulpn | grep -E ':(80|443|3000) ' || echo "No conflicts on main ports"
+            sudo netstat -tulpn | grep -E ':(80|443|3000|3306) ' || echo "No conflicts on main ports"
             
             echo "Stopping processes on required ports..."
             sudo fuser -k 80/tcp 2>/dev/null || echo "Port 80 is free"
             sudo fuser -k 443/tcp 2>/dev/null || echo "Port 443 is free"  
             sudo fuser -k 3000/tcp 2>/dev/null || echo "Port 3000 is free"
-            # Port 3306 not needed locally since using external database
+            sudo fuser -k 3306/tcp 2>/dev/null || echo "Port 3306 is free"
             
             # Wait a moment for processes to terminate
             sleep 2
             echo "Port status after cleanup:"
-            sudo netstat -tulpn | grep -E ':(80|443|3000) ' || echo "All required ports are now free"
+            sudo netstat -tulpn | grep -E ':(80|443|3000|3306) ' || echo "All required ports are now free"
             
             # Login to GitHub Container Registry
             echo "Logging into GitHub Container Registry..."
@@ -345,7 +351,7 @@ jobs:
             # Create .env file from secrets
             echo "Creating .env file..."
             cat > .env << 'ENVEOF'
-            DATABASE_URL=mysql://${{ secrets.MYSQL_USER }}:${{ secrets.MYSQL_PASSWORD }}@${{ secrets.VPS_HOST }}:3306/${{ secrets.MYSQL_DATABASE }}
+            DATABASE_URL=mysql://${{ secrets.MYSQL_USER }}:${{ secrets.MYSQL_PASSWORD }}@mysql:3306/${{ secrets.MYSQL_DATABASE }}
             MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
             MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
             MYSQL_USER=${{ secrets.MYSQL_USER }}
@@ -386,8 +392,12 @@ jobs:
             docker container prune -f
             docker network prune -f
             
-            # Database is external, no need to start MySQL container
-            echo "Using external MySQL database at ${{ secrets.VPS_HOST }}..."
+            # Start database first
+            echo "Starting MySQL database..."
+            docker-compose up -d mysql
+            
+            # Wait for MySQL to be healthy
+            echo "Waiting for MySQL to be ready..."
             
             # Run migrations as separate job
             echo "Running database migrations..."
@@ -405,12 +415,10 @@ jobs:
             echo "=== Services Status ==="
             docker-compose ps
             
-            # Run database migrations (after app is ready)
-            echo "Running database migrations..."
+            # Run database migrations
             docker-compose exec -T app npm run db:migrate
             
             # Seed production data if needed
-            echo "Seeding production data..."
             docker-compose exec -T app npm run db:seed:prod
             
             # Clean up old images
@@ -448,8 +456,8 @@ jobs:
             echo "=== App Container Environment Check ==="
             docker-compose exec -T app env | grep -E "(DATABASE_URL|NODE_ENV)" || echo "App container not running or env vars not accessible"
             echo ""
-            echo "=== External MySQL Connection Test ==="
-            docker-compose exec -T app node -e "const mysql = require('mysql2/promise'); mysql.createConnection(process.env.DATABASE_URL).then(conn => {console.log('MySQL connection: OK'); conn.end();}).catch(err => console.log('MySQL connection: FAILED', err.message));"
+            echo "=== MySQL Connection Test ==="
+            docker-compose exec -T mysql mysqladmin ping -h localhost --silent && echo "MySQL is responding" || echo "MySQL connection failed"
             echo ""
             echo "=== App Container Health ==="
             docker inspect --format='{{.State.Health.Status}}' $(docker-compose ps -q app) 2>/dev/null || echo "No health status available"

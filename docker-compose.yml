@@ -1,13 +1,42 @@
 
 
 services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: ${COMPOSE_PROJECT_NAME:-solar}_mysql${ENVIRONMENT_SUFFIX:-}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    networks:
+      - solar_network
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      timeout: 20s
+      retries: 10
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '${LOG_MAX_SIZE:-10m}'
+        max-file: '${LOG_MAX_FILE:-3}'
+
   # Database Migration Job (runs once)
   migrate:
     image: ${DOCKER_REGISTRY:-}${DOCKER_IMAGE_NAME:-solar-api}:${DOCKER_TAG:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-solar}_migrate${ENVIRONMENT_SUFFIX:-}
     environment:
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@103.70.13.116:3306/${MYSQL_DATABASE}
-    # No dependency on local MySQL since we're using external database
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - solar_network
     command: ["npm", "run", "db:migrate"]
@@ -21,17 +50,18 @@ services:
     restart: ${RESTART_POLICY:-unless-stopped}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@${VPS_HOST}:3306/${MYSQL_DATABASE}
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      VPS_HOST: ${VPS_HOST}
       PORT: 3000
     ports:
       - '${APP_PORT:-3000}:3000'
     depends_on:
+      mysql:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     networks:
@@ -74,6 +104,8 @@ services:
         max-file: '${LOG_MAX_FILE:-3}'
 
 volumes:
+  mysql_data:
+    driver: local
   app_uploads:
     driver: local
   nginx_logs:
