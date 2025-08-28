@@ -418,8 +418,17 @@ jobs:
             # Run database migrations
             docker-compose exec -T app npm run db:migrate
             
-            # Seed production data if needed
-            docker-compose exec -T app npm run db:seed:prod
+            # Check if this is first deployment (database is empty) and seed if needed
+            echo "Checking if database seeding is needed..."
+            SEED_NEEDED=$(docker-compose exec -T mysql mysql -u ${{ secrets.MYSQL_USER }} -p${{ secrets.MYSQL_PASSWORD }} ${{ secrets.MYSQL_DATABASE }} -e "SELECT COUNT(*) as count FROM role;" 2>/dev/null | tail -n 1 | tr -d '\r')
+            
+            if [ "$SEED_NEEDED" = "0" ] || [ -z "$SEED_NEEDED" ]; then
+              echo "Database is empty, running initial seed data..."
+              docker-compose exec -T app npm run db:seed:prod
+              echo "✅ Database seeded successfully"
+            else
+              echo "Database already contains data (role count: $SEED_NEEDED), skipping seed"
+            fi
             
             # Clean up old images
             docker image prune -f
